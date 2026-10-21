@@ -274,6 +274,14 @@
       // restore unsaved draft from this device
       const draft = store.get('asdd_draft_'+ps) || {};
       for(const ep in draft){ if(ans[ep] && !isLocked(ep)){ ans[ep] = draft[ep].slice(); if(ans[ep][0]==='Not Residing') ans[ep][1]='No'; if(isChanged(ep)) dirty.add(ep); } }
+      const unconf = store.get('asdd_unconfirmed_'+ps);
+      if(unconf && sv && sv.ok){
+        const tr = {}; for(const ep in unconf) tr[ep] = saved[ep] && saved[ep][0] && saved[ep][1] ? saved[ep] : undefined;
+        const r = applyTruth(unconf, tr); store.del('asdd_unconfirmed_'+ps); saveDraft();
+        render(); updateStats();
+        setMsg('Result of your last unconfirmed submit: ' + resultMsg(r, 0), (r.failed || r.taken) ? 'err' : 'ok');
+        return;
+      }
       if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
       else setMsg(Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Fill both dropdowns for each elector, then tap Submit.');
@@ -376,27 +384,58 @@
     setMsg(`Saving ${list.length} elector(s)…`);
     const payload = { ps: cur.ps, blo: cur.blo, partName: cur.part,
       rows: list.map(r => [r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], ans[r[1]][0], ans[r[1]][1]]) };
+    const sent = {}; list.forEach(r => sent[r[1]] = ans[r[1]].slice());
+    let out = null;
     try{
-      const out = await backend(JSON.stringify(payload), n => setMsg(`Server busy, retrying (${n})… please keep this page open.`,'warn'));
-      if(!out.ok) throw new Error(out.error || 'Server error');
-      // a rejected row whose saved answers equal ours = our own earlier attempt already went through
-      const ex = out.existing || {};
-      const rej = new Set((out.rejected || []).filter(ep => !(ex[ep] && ans[ep] && ex[ep][0]===ans[ep][0] && ex[ep][1]===ans[ep][1])));
-      list.forEach(r => { if(!rej.has(r[1])){ saved[r[1]] = ans[r[1]].slice(); dirty.delete(r[1]); } });
-      if(rej.size){
-        // someone already submitted these (e.g. from another phone) – load the saved answers and lock them
-        const sv = await backendGet(`${URL_}?action=get&ps=${cur.ps}`).catch(() => null);
-        rej.forEach(ep => { if(sv && sv.ok && sv.data[ep]){ saved[ep] = sv.data[ep]; ans[ep] = sv.data[ep].slice(); } dirty.delete(ep); errEp.add(ep); });
-      }
-      saveDraft(); busy = false; render(); updateStats();
-      const okN = list.length - rej.size;
-      if(rej.size) setMsg((okN ? `Saved ${okN} elector(s). ` : '') + `${rej.size} elector(s) NOT saved – data already submitted (marked in red).`,'err');
-      else setMsg(`Saved ✓ ${okN} elector(s) at ${new Date().toLocaleTimeString()}. These entries are now locked.`
-        + (half ? ` ${half} half-filled elector(s) still pending.` : ''),'ok');
-    }catch(e){
-      busy = false; updateStats();
-      setMsg('Not saved: '+e.message+'. Your selections are kept on this device — try Submit again.','err');
-    }finally{ $('save').textContent = 'Submit'; }
+      out = await backend(JSON.stringify(payload), n => setMsg(`Server busy, retrying (${n})… please keep this page open.`,'warn'));
+    }catch(e){ out = null; }
+
+    // Decide, per elector, what is REALLY in the Google Sheet.
+    let truth = null;           // epic -> [residing, form6] as stored in the sheet
+    if(out && out.ok){
+      truth = {};
+      const rej = new Set(out.rejected || []), ex = out.existing || {};
+      list.forEach(r => { const ep = r[1]; truth[ep] = rej.has(ep) ? (ex[ep] || null) : sent[ep]; });
+    }else{
+      // Save failed or the reply was lost – ask the sheet directly before telling the BLO anything.
+      setMsg('Checking with Google Sheet whether your data was saved…','warn');
+      const sv = await backendGet(`${URL_}?action=get&ps=${cur.ps}`).catch(() => null);
+      if(sv && sv.ok){ truth = {}; list.forEach(r => truth[r[1]] = sv.data[r[1]] && sv.data[r[1]][0] && sv.data[r[1]][1] ? sv.data[r[1]] : undefined); }
+    }
+
+    if(!truth){
+      // Could not reach Google at all – we genuinely don't know yet. Keep everything, check again on next open.
+      store.set('asdd_unconfirmed_'+cur.ps, sent);
+      busy = false; updateStats(); $('save').textContent = 'Submit';
+      setMsg(`⚠ No internet / Google not reachable. Could NOT confirm whether ${list.length} elector(s) were saved. `
+        + `Your selections are kept on this phone. When internet is back, refresh this page (pull down) – it will show exactly what was saved.`,'err');
+      return;
+    }
+    const res = applyTruth(sent, truth);
+    store.del('asdd_unconfirmed_'+cur.ps);
+    saveDraft(); busy = false; render(); updateStats(); $('save').textContent = 'Submit';
+    setMsg(resultMsg(res, half), (res.failed || res.taken) ? 'err' : 'ok');
+  }
+
+  // Applies the sheet's real state to the page. Returns counts.
+  function applyTruth(sent, truth){
+    const same = (a, b) => !!(a && b && a[0]===b[0] && a[1]===b[1]);
+    const r = { saved:0, taken:0, failed:0 };
+    for(const ep in sent){
+      const t = truth[ep];
+      if(same(t, sent[ep])){ saved[ep] = t.slice(); ans[ep] = t.slice(); dirty.delete(ep); errEp.delete(ep); r.saved++; }
+      else if(t && t[0] && t[1]){ saved[ep] = t.slice(); ans[ep] = t.slice(); dirty.delete(ep); errEp.add(ep); r.taken++; }   // someone else's answer already stored
+      else { r.failed++; }                                                                                                   // not in sheet – still pending
+    }
+    return r;
+  }
+  function resultMsg(r, half){
+    const parts = [];
+    if(r.saved)  parts.push(`✓ ${r.saved} elector(s) SAVED to Google Sheet`);
+    if(r.failed) parts.push(`✗ ${r.failed} elector(s) NOT saved – please tap Submit again`);
+    if(r.taken)  parts.push(`✗ ${r.taken} elector(s) NOT saved – data already submitted (red)`);
+    if(half)     parts.push(`${half} half-filled elector(s) still pending`);
+    return parts.join(' · ') + ` (${new Date().toLocaleTimeString()})`;
   }
 
   $('bloSel').addEventListener('change', loadPS);
