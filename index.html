@@ -282,10 +282,10 @@
         setMsg('Result of your last unconfirmed submit: ' + resultMsg(r, 0), (r.failed || r.taken) ? 'err' : 'ok');
         return;
       }
+      render(); updateStats();
       if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
       else setMsg(Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Fill both dropdowns for each elector, then tap Submit.');
-      render(); updateStats();
     }catch(e){ setMsg('Failed to load list: '+e.message,'err'); }
     finally{ $('loader').classList.add('hide'); }
   }
