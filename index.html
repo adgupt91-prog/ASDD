@@ -220,6 +220,25 @@
   const setMsg = (t, cls) => { const m=$('msg'); m.textContent=t; m.className=cls||''; };
 
   async function getJSON(u){ const r = await fetch(u, {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  // Calls the Google Sheet script, quietly retrying (with growing, randomised waits) if it is busy or the network blips.
+  async function backend(body, onRetry, getUrl){
+    const waits = [1500, 3000, 6000, 10000];
+    for(let i = 0; ; i++){
+      try{
+        const r = body ? await fetch(URL_, {method:'POST', body}) : await fetch(getUrl, {cache:'no-store'});
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        const out = await r.json();
+        if(out.ok === false && (out.busy || /too many|busy|timed out|exceeded|try again/i.test(out.error||''))) throw new Error(out.error || 'Server busy');
+        return out;
+      }catch(e){
+        if(i >= waits.length) throw e;
+        if(onRetry) onRetry(i+1);
+        await sleep(waits[i] + Math.random()*1500);
+      }
+    }
+  }
+  const backendGet = (u, onRetry) => backend(null, onRetry, u);
 
   async function init(){
     blos = await getJSON('data/blos.json');
@@ -245,7 +264,7 @@
     try{
       const [data, sv] = await Promise.all([
         getJSON(`data/g${Math.floor((Number(ps)-1)/19)+1}.json`).then(g => g[ps]),
-        hasBackend ? getJSON(`${URL_}?action=get&ps=${ps}`).catch(e => ({ok:false,error:e.message})) : Promise.resolve({ok:true,data:{}})
+        hasBackend ? backendGet(`${URL_}?action=get&ps=${ps}`, n => setMsg(`Server busy, retrying (${n})…`,'warn')).catch(e => ({ok:false,error:e.message})) : Promise.resolve({ok:true,data:{}})
       ]);
       if(cur.ps !== Number(ps)) return;
       rows = data;
@@ -358,14 +377,15 @@
     const payload = { ps: cur.ps, blo: cur.blo, partName: cur.part,
       rows: list.map(r => [r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], ans[r[1]][0], ans[r[1]][1]]) };
     try{
-      const res = await fetch(URL_, { method:'POST', body: JSON.stringify(payload) });
-      const out = await res.json();
+      const out = await backend(JSON.stringify(payload), n => setMsg(`Server busy, retrying (${n})… please keep this page open.`,'warn'));
       if(!out.ok) throw new Error(out.error || 'Server error');
-      const rej = new Set(out.rejected || []);
+      // a rejected row whose saved answers equal ours = our own earlier attempt already went through
+      const ex = out.existing || {};
+      const rej = new Set((out.rejected || []).filter(ep => !(ex[ep] && ans[ep] && ex[ep][0]===ans[ep][0] && ex[ep][1]===ans[ep][1])));
       list.forEach(r => { if(!rej.has(r[1])){ saved[r[1]] = ans[r[1]].slice(); dirty.delete(r[1]); } });
       if(rej.size){
         // someone already submitted these (e.g. from another phone) – load the saved answers and lock them
-        const sv = await getJSON(`${URL_}?action=get&ps=${cur.ps}`).catch(() => null);
+        const sv = await backendGet(`${URL_}?action=get&ps=${cur.ps}`).catch(() => null);
         rej.forEach(ep => { if(sv && sv.ok && sv.data[ep]){ saved[ep] = sv.data[ep]; ans[ep] = sv.data[ep].slice(); } dirty.delete(ep); errEp.add(ep); });
       }
       saveDraft(); busy = false; render(); updateStats();
@@ -422,7 +442,7 @@
     let sum = {};
     if(!hasBackend) $('admMsg').textContent = 'Google Sheet link not set in config.js.';
     else try{
-      const r = await getJSON(URL_ + '?action=summary');
+      const r = await backendGet(URL_ + '?action=summary');
       if(!r.ok) throw new Error(r.error); sum = r.data;
       $('admMsg').textContent = 'Updated ' + new Date().toLocaleTimeString();
     }catch(e){ $('admMsg').textContent = 'Could not read Google Sheet: ' + e.message; }
