@@ -6,10 +6,7 @@
 <title>ASDD Re-verification — AC 24 Patel Nagar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script>
-  // ▼▼▼ PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL BETWEEN THE QUOTES (ends with /exec) ▼▼▼
-  window.SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRMCZvtQ728EbH-G_m0ZbjjjxqrBvqLiLBrQmhH5CcVo8-73x8HGejx3wdvIenvkjQ/exec";
-</script>
+<script src="config.js"></script>
 <style>
   :root{
     --blue:#2f5fad; --teal:#1a5f55; --teal-2:#237467; --ink:#1d2433; --muted:#5d6676;
@@ -107,7 +104,7 @@
 <div class="topbar"><b>District CENTRAL · AC 24 – PATEL NAGAR</b><span>BLO data entry · ASDD re-verification</span></div>
 <main>
   <h1>Status of Re-verification of ASDD Electors</h1>
-  <div id="cfgBanner" class="banner">Setup pending: the Google Sheet link is not set in <code>index.html</code> (SCRIPT_URL line), so data can't be saved yet.</div>
+  <div id="cfgBanner" class="banner">Setup pending: the Google Sheet link is not set in <code>config.js</code>, so data can't be saved yet.</div>
 
   <div class="panel" id="selPanel">
     <label class="lbl" for="bloSel">Select your Part No. / BLO name</label>
@@ -239,7 +236,7 @@
     setMsg('Loading…');
     try{
       const [data, sv] = await Promise.all([
-        getJSON(`data/ps/${ps}.json`),
+        getJSON(`data/g${Math.floor((Number(ps)-1)/19)+1}.json`).then(g => g[ps]),
         hasBackend ? getJSON(`${URL_}?action=get&ps=${ps}`).catch(e => ({ok:false,error:e.message})) : Promise.resolve({ok:true,data:{}})
       ]);
       if(cur.ps !== Number(ps)) return;
@@ -377,7 +374,7 @@
   async function loadAdmin(){
     $('admMsg').textContent = 'Loading…';
     let sum = {};
-    if(!hasBackend) $('admMsg').textContent = 'Google Sheet link not set (SCRIPT_URL line in index.html).';
+    if(!hasBackend) $('admMsg').textContent = 'Google Sheet link not set in config.js.';
     else try{
       const r = await getJSON(URL_ + '?action=summary');
       if(!r.ok) throw new Error(r.error); sum = r.data;
