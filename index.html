@@ -43,6 +43,11 @@
   tbody tr.dirty td:first-child{box-shadow:inset 4px 0 0 var(--dirty)}
   td select{min-width:130px;padding:6px 8px}
   td select.empty{border-color:#c4472f;background:#fff7f5}
+  td select.frozen{background:#eef1f4;color:#4a5260;border-color:#c3cad3;cursor:not-allowed;opacity:1}
+  tr.locked td select{background:#eef1f4;color:#4a5260;border-color:#c3cad3;cursor:not-allowed}
+  .lockmsg{font-size:12px;font-weight:600;color:var(--done-ink);margin-top:4px}
+  tr.lockerr .lockmsg{color:var(--err)}
+  tr.lockerr td.c-sel select{border-color:var(--err)}
   .tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap}
   .t-ps{background:#fdecc8;color:#7a5200}.t-ua{background:#e2e8f8;color:#2b4a8f}
   .t-d{background:#eadbdb;color:#7d2b2b}.t-ae{background:#dff1e6;color:#1e6a3e}
@@ -90,12 +95,12 @@
     #work tbody tr.dirty{box-shadow:inset 4px 0 0 var(--dirty)}
     #work tbody tr.dirty td:first-child{box-shadow:none}
     #work td{border:0;padding:2px 0;text-align:left;font-size:13px}
-    td.c-dist,td.c-acno,td.c-acname,td.c-part{display:none}
-    td.c-sn{grid-column:1/-1;font-size:12px;color:var(--muted)}
-    td.c-name{grid-column:1/-1;font-size:16px;font-weight:700}
-    td.c-rel{grid-column:1/-1}
-    td.c-sel{grid-column:1/-1;padding-top:6px}
-    td select{width:100%;font-size:15px;padding:9px}
+    #work td.c-dist,#work td.c-acno,#work td.c-acname,#work td.c-part{display:none}
+    #work td.c-sn{grid-column:1/-1;font-size:12px;color:var(--muted)}
+    #work td.c-name{grid-column:1/-1;font-size:16px;font-weight:700}
+    #work td.c-rel{grid-column:1/-1}
+    #work td.c-sel{grid-column:1/-1;padding-top:6px}
+    #work td select{width:100%;font-size:15px;padding:9px}
     .lbl-m{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
   }
 </style>
@@ -199,7 +204,7 @@
 
   const $ = id => document.getElementById(id);
   const RES = ['Residing','Not Residing'], F6 = ['Yes','No'];
-  let blos = [], cur = null, rows = [], ans = {}, saved = {}, dirty = new Set(), busy = false;
+  let blos = [], cur = null, rows = [], ans = {}, saved = {}, dirty = new Set(), busy = false, errEp = new Set();
 
   const store = {
     get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } },
@@ -209,6 +214,9 @@
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const tagCls = s => s==='Permanently Shifted'?'t-ps':s==='Untraceable/Absent'?'t-ua':s==='Death'?'t-d':'t-ae';
   const opts = (list, v) => '<option value="">-- Select --</option>' + list.map(o => `<option${o===v?' selected':''}>${o}</option>`).join('');
+  // Form-6 dropdown depends on residing status: "Not Residing" => frozen "No"
+  const f6Opts = a => a[0]==='Not Residing' ? '<option selected>No</option>' : opts(F6, a[1]);
+  const f6Attr = a => a[0]==='Not Residing' ? 'class="frozen" disabled title="Not Residing – Form-6 is automatically No"' : `class="${a[1]?'':'empty'}"`;
   const setMsg = (t, cls) => { const m=$('msg'); m.textContent=t; m.className=cls||''; };
 
   async function getJSON(u){ const r = await fetch(u, {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
@@ -242,11 +250,11 @@
       if(cur.ps !== Number(ps)) return;
       rows = data;
       saved = (sv && sv.ok && sv.data) ? sv.data : {};
-      ans = {}; dirty = new Set();
+      ans = {}; dirty = new Set(); errEp = new Set();
       for(const r of rows){ const s = saved[r[1]]; ans[r[1]] = s ? [s[0]||'', s[1]||''] : ['','']; }
       // restore unsaved draft from this device
       const draft = store.get('asdd_draft_'+ps) || {};
-      for(const ep in draft){ if(ans[ep]){ ans[ep] = draft[ep]; if(isChanged(ep)) dirty.add(ep); } }
+      for(const ep in draft){ if(ans[ep] && !isLocked(ep)){ ans[ep] = draft[ep].slice(); if(ans[ep][0]==='Not Residing') ans[ep][1]='No'; if(isChanged(ep)) dirty.add(ep); } }
       if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
       else setMsg(Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Fill both dropdowns for each elector, then tap Submit.');
@@ -255,6 +263,15 @@
     finally{ $('loader').classList.add('hide'); }
   }
 
+  const isLocked = ep => !!(saved[ep] && saved[ep][0] && saved[ep][1]);
+  const LOCK_OK = '✓ Submitted', LOCK_ERR = 'Data already submitted';
+  function flagLocked(tr){
+    const ep = tr.dataset.ep; errEp.add(ep);
+    tr.classList.add('lockerr');
+    const m = tr.querySelector('.lockmsg'); if(m) m.textContent = LOCK_ERR;
+    tr.querySelectorAll('select').forEach((sel,k) => sel.value = saved[ep][k]);
+    setMsg(`Data already submitted for ${tr.querySelector('.c-name').textContent} – it cannot be changed.`,'err');
+  }
   function isChanged(ep){ const s = saved[ep] || ['','']; const a = ans[ep]; return (a[0]||'')!==(s[0]||'') || (a[1]||'')!==(s[1]||''); }
 
   function render(){
@@ -268,14 +285,15 @@
       if(fw==='done' && !done) continue;
       if(q && !(name.toUpperCase().includes(q) || epic.includes(q) || String(sn)===q || String(os)===q)) continue;
       n++;
-      html += `<tr data-ep="${epic}" class="${done?'done':''}${dirty.has(epic)?' dirty':''}">
+      const lk = isLocked(epic), le = lk && errEp.has(epic);
+      html += `<tr data-ep="${epic}" class="${done?'done':''}${dirty.has(epic)?' dirty':''}${lk?' locked':''}${le?' lockerr':''}">
         <td class="c-sn">${sn}</td><td class="c-dist">CENTRAL</td><td class="c-acno">24</td><td class="c-acname">PATEL NAGAR</td>
         <td class="c-name">${esc(name)}</td><td><span class="lbl-m">EPIC No.</span>${epic}</td>
         <td><span class="lbl-m">Relation</span>${esc(rt)}</td><td class="c-rel-name"><span class="lbl-m">Relation Name</span>${esc(rn)}</td>
         <td class="c-part">${esc(op)}</td><td><span class="lbl-m">Serial No</span>${esc(os)}</td>
         <td class="c-rel"><span class="lbl-m">Status in ASDD list</span><span class="tag ${tagCls(st)}">${esc(st)}</span></td>
         <td class="c-sel"><span class="lbl-m">After re-verification</span><select data-k="0" class="${a[0]?'':'empty'}">${opts(RES,a[0])}</select></td>
-        <td class="c-sel"><span class="lbl-m">Form-6 obtained?</span><select data-k="1" class="${a[1]?'':'empty'}">${opts(F6,a[1])}</select></td>
+        <td class="c-sel"><span class="lbl-m">Form-6 obtained?</span><select data-k="1" ${f6Attr(a)}>${f6Opts(a)}</select>${lk?`<div class="lockmsg">${le?LOCK_ERR:LOCK_OK}</div>`:''}</td>
       </tr>`;
     }
     $('tb').innerHTML = html;
@@ -301,19 +319,40 @@
   $('tb').addEventListener('change', e => {
     const sel = e.target; if(sel.tagName!=='SELECT') return;
     const tr = sel.closest('tr'), ep = tr.dataset.ep, k = +sel.dataset.k;
+    if(isLocked(ep)){ flagLocked(tr); return; }
     ans[ep][k] = sel.value;
     sel.classList.toggle('empty', !sel.value);
+    if(k===0){
+      const f = tr.querySelector('select[data-k="1"]'), wasFrozen = f.disabled;
+      if(sel.value==='Not Residing') ans[ep][1] = 'No';
+      else if(wasFrozen) ans[ep][1] = '';          // coming from Not Residing: let BLO choose afresh
+      const tmp = document.createElement('div');
+      tmp.innerHTML = `<select data-k="1" ${f6Attr(ans[ep])}>${f6Opts(ans[ep])}</select>`;
+      f.replaceWith(tmp.firstChild);
+    }
     if(isChanged(ep)) dirty.add(ep); else dirty.delete(ep);
     tr.classList.toggle('dirty', dirty.has(ep));
     tr.classList.toggle('done', !!(ans[ep][0] && ans[ep][1]));
     saveDraft(); updateStats();
   });
 
+  // Stop the dropdown from even opening on a submitted row
+  const blockLocked = e => {
+    const sel = e.target; if(sel.tagName!=='SELECT') return;
+    const tr = sel.closest('tr'); if(!tr || !isLocked(tr.dataset.ep)) return;
+    if(e.type==='keydown' && ['Tab','Shift'].includes(e.key)) return;
+    e.preventDefault(); sel.blur(); flagLocked(tr);
+  };
+  ['mousedown','touchstart','keydown'].forEach(ev => $('tb').addEventListener(ev, blockLocked, {passive:false}));
+
   async function submit(){
     if(!dirty.size || busy) return;
-    const list = rows.filter(r => dirty.has(r[1]));
-    const half = list.filter(r => { const a=ans[r[1]]; return !!a[0] !== !!a[1]; }).length;
-    if(half && !confirm(`${half} elector(s) have only one of the two dropdowns filled. Submit anyway?`)) return;
+    const pend = rows.filter(r => dirty.has(r[1]) && !isLocked(r[1]));
+    const list = pend.filter(r => ans[r[1]][0] && ans[r[1]][1]);
+    const half = pend.length - list.length;
+    if(!list.length){ setMsg('Fill BOTH dropdowns for an elector before submitting. Once submitted, it cannot be changed.','err'); return; }
+    if(!confirm(`Submit ${list.length} elector(s)? Once submitted, these entries CANNOT be changed.`
+      + (half ? `\n\n${half} elector(s) with only one dropdown filled will NOT be submitted.` : ''))) return;
     busy = true; $('save').disabled = true; $('save').textContent = 'Saving…';
     setMsg(`Saving ${list.length} elector(s)…`);
     const payload = { ps: cur.ps, blo: cur.blo, partName: cur.part,
@@ -322,11 +361,18 @@
       const res = await fetch(URL_, { method:'POST', body: JSON.stringify(payload) });
       const out = await res.json();
       if(!out.ok) throw new Error(out.error || 'Server error');
-      list.forEach(r => { saved[r[1]] = ans[r[1]].slice(); });
-      dirty.clear(); saveDraft();
-      document.querySelectorAll('#tb tr.dirty').forEach(tr => tr.classList.remove('dirty'));
-      busy = false; updateStats();
-      setMsg(`Saved ✓ ${list.length} elector(s) to Google Sheet at ${new Date().toLocaleTimeString()}.`,'ok');
+      const rej = new Set(out.rejected || []);
+      list.forEach(r => { if(!rej.has(r[1])){ saved[r[1]] = ans[r[1]].slice(); dirty.delete(r[1]); } });
+      if(rej.size){
+        // someone already submitted these (e.g. from another phone) – load the saved answers and lock them
+        const sv = await getJSON(`${URL_}?action=get&ps=${cur.ps}`).catch(() => null);
+        rej.forEach(ep => { if(sv && sv.ok && sv.data[ep]){ saved[ep] = sv.data[ep]; ans[ep] = sv.data[ep].slice(); } dirty.delete(ep); errEp.add(ep); });
+      }
+      saveDraft(); busy = false; render(); updateStats();
+      const okN = list.length - rej.size;
+      if(rej.size) setMsg((okN ? `Saved ${okN} elector(s). ` : '') + `${rej.size} elector(s) NOT saved – data already submitted (marked in red).`,'err');
+      else setMsg(`Saved ✓ ${okN} elector(s) at ${new Date().toLocaleTimeString()}. These entries are now locked.`
+        + (half ? ` ${half} half-filled elector(s) still pending.` : ''),'ok');
     }catch(e){
       busy = false; updateStats();
       setMsg('Not saved: '+e.message+'. Your selections are kept on this device — try Submit again.','err');
