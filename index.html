@@ -229,15 +229,6 @@
   <div class="row"><button class="btn ghost" type="button" id="lcancel">Cancel</button><button class="btn" type="submit">Login</button></div>
 </form></div>
 
-<datalist id="reasonList">
-  <option value="Elector not available at home">
-  <option value="Elector refused to fill Form 6">
-  <option value="Required documents not available">
-  <option value="Already enrolled at another place">
-  <option value="Not eligible (age / citizenship)">
-  <option value="Family member says elector will submit later">
-</datalist>
-
 <div class="savebar" id="savebar"><div class="in">
   <span id="msg">No unsaved changes.</span>
   <span style="display:flex;gap:10px;align-items:center">
@@ -276,8 +267,8 @@
     const k = detKind(a), v = a[2] || '';
     if(!k) return `<span class="lbl-m">Form 6 Ref. No. / Reason</span><span class="det-na">${a[0]==='Not Residing' ? 'Not required (Not Residing)' : '— choose Residing + Form-6 first'}</span>`;
     return `<div class="det-lbl">${DET[k]} <span class="req">*</span></div>`
-      + `<input data-k="2" class="det${v.trim()?'':' empty'}" ${k==='reason'?'list="reasonList" maxlength="150"':'maxlength="50" autocomplete="off"'} `
-      + `placeholder="${k==='ref' ? 'Enter Form 6 Reference Number' : 'Type or pick a reason'}" value="${esc(v)}"${lk?' readonly':''}>`;
+      + `<input data-k="2" class="det${v.trim()?'':' empty'}" ${k==='reason'?'maxlength="150"':'maxlength="50"'} autocomplete="off" `
+      + `placeholder="${k==='ref' ? 'Enter Form 6 Reference Number' : 'Write the reason'}" value="${esc(v)}"${lk?' readonly':''}>`;
   }
   const setMsg = (t, cls) => { const m=$('msg'); m.textContent=t; m.className=cls||''; };
 
