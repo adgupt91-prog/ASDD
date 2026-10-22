@@ -267,7 +267,7 @@
     const k = detKind(a), v = a[2] || '';
     if(!k) return `<span class="lbl-m">Form 6 Ref. No. / Reason</span><span class="det-na">${a[0]==='Not Residing' ? 'Not required (Not Residing)' : '— choose Residing + Form-6 first'}</span>`;
     return `<div class="det-lbl">${DET[k]} <span class="req">*</span></div>`
-      + `<input data-k="2" class="det${v.trim()?'':' empty'}" ${k==='reason'?'maxlength="150"':'maxlength="50"'} autocomplete="off" `
+      + `<input data-k="2" class="det${v.trim()?'':' empty'}" ${k==='reason'?'maxlength="250"':'maxlength="50"'} autocomplete="off" `
       + `placeholder="${k==='ref' ? 'Enter Form 6 Reference Number' : 'Write the reason'}" value="${esc(v)}"${lk?' readonly':''}>`;
   }
   const setMsg = (t, cls) => { const m=$('msg'); m.textContent=t; m.className=cls||''; };
