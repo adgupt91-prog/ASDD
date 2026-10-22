@@ -64,8 +64,10 @@
   .hide{display:none!important}
   .lbl-m{display:none}
   footer{text-align:center;margin:28px 0 8px}
-  .adminlink{font:inherit;font-size:12px;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:6px;padding:5px 12px;cursor:pointer}
-  .adminlink:hover{color:var(--ink);border-color:#9aa5b4}
+  .topright{display:flex;align-items:center;gap:14px}
+  .adminlink{font:inherit;font-size:16px;font-weight:700;color:var(--blue);background:#fff;border:0;border-radius:8px;padding:9px 22px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.2);letter-spacing:.3px}
+  .adminlink:hover{background:#eaf0fb}
+  @media (max-width:600px){ .topbar{flex-wrap:nowrap;padding:10px 12px} .topbar b{font-size:13px;line-height:1.3} .topbar span{display:none} .adminlink{font-size:15px;padding:8px 16px;flex-shrink:0} }
   .modal{position:fixed;inset:0;background:rgba(20,28,40,.45);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
   .modal .box{background:#fff;border-radius:12px;padding:20px;width:100%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
   .modal h3{margin:0 0 14px}
@@ -111,7 +113,7 @@
 </style>
 </head>
 <body>
-<div class="topbar"><b>District CENTRAL · AC 24 – PATEL NAGAR</b><span>BLO data entry · ASDD re-verification</span></div>
+<div class="topbar"><b>District CENTRAL · AC 24 – PATEL NAGAR</b><div class="topright"><span>BLO data entry · ASDD re-verification</span><button class="adminlink" id="adminBtn" type="button">Admin</button></div></div>
 <main>
   <h1>Status of Re-verification of ASDD Electors</h1>
   <div id="cfgBanner" class="banner">Setup pending: the Google Sheet link is not set in <code>config.js</code>, so data can't be saved yet.</div>
@@ -187,7 +189,10 @@
       <div class="panel" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <div><button class="btn ghost" id="psBack" type="button">← All BLOs</button></div>
         <div style="flex:1;min-width:220px"><b id="psTitle" style="font-size:17px"></b><div class="meta" id="psMeta" style="margin-top:2px"></div></div>
-        <button class="btn" id="psCsv" type="button">Download CSV</button>
+        <span style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="psXlsx" type="button">Download Excel</button>
+          <button class="btn" id="psPdf" type="button" style="background:#b03a2e">Download PDF</button>
+        </span>
       </div>
       <div class="stats" id="psStats"></div>
       <div class="panel filters">
@@ -205,7 +210,6 @@
     </div>
   </section>
 
-  <footer><button class="adminlink" id="adminBtn" type="button">Admin</button></footer>
 </main>
 
 <div class="modal hide" id="loginModal"><form class="box" id="loginForm" autocomplete="off">
@@ -584,18 +588,81 @@
   }
   let pt; $('psQ').addEventListener('input', () => { clearTimeout(pt); pt = setTimeout(drawPS, 150); });
   $('psF').addEventListener('change', drawPS); $('psR').addEventListener('change', drawPS);
-  $('psCsv').addEventListener('click', () => {
-    if(!psCur) return;
-    const head = ['District Name','AC No','AC Name','Part No','Part Name','BLO Name','S.No','Name of the Elector','EPIC No','Relation Type','Relation Name',
-      'Old Part No','Old Serial No','Age','Gender','Status of Elector in the ASDD List','Status after Re-verification (Residing/Not Residing)','Form-6 Obtained or Not'];
-    const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
-    const lines = [head.map(q).join(',')].concat(psFiltered().map(r => { const a = psSaved[r[1]] || ['',''];
-      return ['CENTRAL',24,'PATEL NAGAR',psCur.ps,psCur.part,psCur.blo,r[0],r[2],r[1],r[3],r[4],r[5],r[6],r[7],r[8],r[9],a[0],a[1]].map(q).join(','); }));
-    const blob = new Blob(['\ufeff' + lines.join('\r\n')], {type:'text/csv;charset=utf-8'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `PS-${psCur.ps}_${psCur.blo}_ASDD_${$('psF').value || 'all'}.csv`; document.body.appendChild(a); a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-  });
+  /* ---- Excel / PDF downloads (libraries load only when first needed) ---- */
+  const LIBS = {
+    xlsx: ['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'],
+    pdf:  ['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+           'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js']
+  };
+  const loaded = {};
+  function loadScript(src){
+    return loaded[src] || (loaded[src] = new Promise((res, rej) => {
+      const el = document.createElement('script'); el.src = src; el.onload = res;
+      el.onerror = () => { delete loaded[src]; rej(new Error('could not load download tool – check internet')); };
+      document.head.appendChild(el);
+    }));
+  }
+  async function loadLibs(k){ for(const src of LIBS[k]) await loadScript(src); }
+  const FILTER_NAME = { done:'submitted', '':'all', pending:'pending' };
+  const HEAD = ['S.No','Name of the Elector','EPIC No','Relation Type','Relation Name','Old Part No','Old Serial No','Age','Gender',
+    'Status of Elector in the ASDD List','Status after Re-verification (Residing/Not Residing)','Form-6 Obtained or Not'];
+  function exportRows(){ return psFiltered().map(r => { const a = psSaved[r[1]] || ['','']; return [Number(r[0]), r[2], r[1], r[3], r[4], r[5], Number(r[6]) || r[6], Number(r[7]) || r[7], r[8], r[9], a[0], a[1]]; }); }
+  function exportInfo(){
+    const done = psRows.filter(r => isDone(r[1])), c = (k, v) => done.filter(r => psSaved[r[1]][k] === v).length;
+    return { name: `PS-${psCur.ps}_${psCur.blo}_ASDD_${FILTER_NAME[$('psF').value]}`.replace(/[^\w\-]+/g,'_'),
+      when: new Date().toLocaleString('en-IN'), total: psRows.length, done: done.length, pending: psRows.length - done.length,
+      res: c(0,'Residing'), nres: c(0,'Not Residing'), yes: c(1,'Yes'), no: c(1,'No'),
+      view: $('psF').selectedOptions[0].text + ($('psR').value ? ' · ' + $('psR').value : '') + ($('psQ').value.trim() ? ` · search "${$('psQ').value.trim()}"` : '') };
+  }
+  async function withBusy(btn, label, fn){
+    const old = btn.textContent; btn.disabled = true; btn.textContent = label;
+    try{ await fn(); }
+    catch(e){ $('psMeta').textContent = 'Download failed: ' + e.message; }
+    finally{ btn.disabled = false; btn.textContent = old; }
+  }
+  $('psXlsx').addEventListener('click', () => psCur && withBusy($('psXlsx'), 'Preparing…', async () => {
+    await loadLibs('xlsx');
+    const I = exportInfo(), rows = exportRows(), wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([HEAD, ...rows]);
+    ws['!cols'] = [6,26,14,10,24,8,8,6,7,20,26,14].map(w => ({ wch: w }));
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:Math.max(rows.length,1), c:HEAD.length-1} }) };
+    XLSX.utils.book_append_sheet(wb, ws, 'Entries');
+    const sum = XLSX.utils.aoa_to_sheet([
+      ['Status of Re-verification of ASDD Electors'], [],
+      ['District','CENTRAL'], ['AC','24 – PATEL NAGAR'], ['Part / PS No', psCur.ps], ['Part Name', psCur.part], ['BLO Name', psCur.blo],
+      ['Rows in this file', rows.length + ' (' + I.view + ')'], ['Downloaded on', I.when], [],
+      ['Total electors in ASDD list', I.total], ['Submitted', I.done], ['Pending', I.pending],
+      ['Residing', I.res], ['Not Residing', I.nres], ['Form-6 obtained: Yes', I.yes], ['Form-6 obtained: No', I.no]
+    ]);
+    sum['!cols'] = [{ wch: 28 }, { wch: 40 }];
+    XLSX.utils.book_append_sheet(wb, sum, 'Summary');
+    XLSX.writeFile(wb, I.name + '.xlsx');
+  }));
+  $('psPdf').addEventListener('click', () => psCur && withBusy($('psPdf'), 'Preparing…', async () => {
+    await loadLibs('pdf');
+    const I = exportInfo(), rows = exportRows();
+    const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const W = doc.internal.pageSize.getWidth();
+    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text('Status of Re-verification of ASDD Electors', W/2, 36, { align:'center' });
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text(`District: CENTRAL   |   AC: 24 - PATEL NAGAR   |   Part/PS No: ${psCur.ps} - ${psCur.part}   |   BLO: ${psCur.blo}`, W/2, 54, { align:'center' });
+    doc.text(`Total: ${I.total}   Submitted: ${I.done}   Pending: ${I.pending}   Residing: ${I.res}   Not Residing: ${I.nres}   Form-6 Yes: ${I.yes}   Form-6 No: ${I.no}`, W/2, 69, { align:'center' });
+    doc.setFontSize(8.5); doc.setTextColor(90);
+    doc.text(`Showing: ${I.view} (${rows.length} rows)   |   Downloaded: ${I.when}`, W/2, 82, { align:'center' }); doc.setTextColor(0);
+    const cols = [0,1,2,3,4,6,9,10,11];          // S.No, Name, EPIC, Rel type, Rel name, Serial, ASDD status, Residing, Form-6
+    doc.autoTable({
+      startY: 92, margin: { left: 24, right: 24, bottom: 30 },
+      head: [['S.N.','Name of the Elector','EPIC No.','Relation Type','Relation Name','Serial No','Status in ASDD List','Status after Re-verification','Form-6 Obtained']],
+      body: rows.length ? rows.map(r => cols.map(i => r[i] === '' ? '-' : r[i])) : [['', 'No entries to show', '', '', '', '', '', '', '']],
+      styles: { fontSize: 8, cellPadding: 3, valign: 'middle', lineColor: [213,219,227], lineWidth: 0.4 },
+      headStyles: { fillColor: [26,95,85], textColor: 255, fontStyle: 'bold', halign: 'center' },
+      alternateRowStyles: { fillColor: [242,246,248] },
+      columnStyles: { 0:{halign:'center',cellWidth:32}, 2:{halign:'center'}, 3:{halign:'center'}, 5:{halign:'center',cellWidth:44}, 6:{halign:'center'}, 7:{halign:'center',fontStyle:'bold'}, 8:{halign:'center',fontStyle:'bold',cellWidth:56} },
+      didDrawPage: d => { doc.setFontSize(8); doc.setTextColor(120);
+        doc.text(`PS-${psCur.ps} ${psCur.blo} - Page ${doc.internal.getNumberOfPages()}`, W - 24, doc.internal.pageSize.getHeight() - 14, { align:'right' }); doc.setTextColor(0); }
+    });
+    doc.save(I.name + '.pdf');
+  }));
 
   init().catch(e => setMsg('Failed to start: '+e.message,'err'));
 })();
