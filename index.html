@@ -74,7 +74,15 @@
   .topright{display:flex;align-items:center;gap:14px}
   .adminlink{font:inherit;font-size:16px;font-weight:700;color:var(--blue);background:#fff;border:0;border-radius:8px;padding:9px 22px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.2);letter-spacing:.3px}
   .adminlink:hover{background:#eaf0fb}
-  @media (max-width:600px){ .topbar{flex-wrap:nowrap;padding:10px 12px} .topbar b{font-size:13px;line-height:1.3} .topbar span{display:none} .adminlink{font-size:15px;padding:8px 16px;flex-shrink:0} }
+  .aerolink{background:#ffd54a;color:#4a3800}
+  .aerolink:hover{background:#ffe27a}
+  .topbtns{display:flex;gap:8px}
+  #aeroSel{width:100%;font:inherit;font-size:15px;border:1px solid #9aa5b4;border-radius:6px;padding:9px 10px;margin-bottom:10px}
+  .overall{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:12px}
+  .overall .lbl{display:flex;justify-content:space-between;font-weight:600;margin-bottom:6px}
+  .overall .big{height:14px;background:#e3e8ee;border-radius:7px;overflow:hidden}
+  .overall .big i{display:block;height:100%;background:var(--done-ink);transition:width .4s}
+  @media (max-width:600px){ .topbar{flex-wrap:nowrap;padding:10px 12px} .topbar b{font-size:13px;line-height:1.3} .topbar span{display:none} .adminlink{font-size:14px;padding:8px 12px;flex-shrink:0} }
   .modal{position:fixed;inset:0;background:rgba(20,28,40,.45);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
   .modal .box{background:#fff;border-radius:12px;padding:20px;width:100%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
   .modal h3{margin:0 0 14px}
@@ -120,7 +128,7 @@
 </style>
 </head>
 <body>
-<div class="topbar"><b>District CENTRAL · AC 24 – PATEL NAGAR</b><div class="topright"><span>BLO data entry · ASDD re-verification</span><button class="adminlink" id="adminBtn" type="button">Admin</button></div></div>
+<div class="topbar"><b>District CENTRAL · AC 24 – PATEL NAGAR</b><div class="topright"><span>BLO data entry · ASDD re-verification</span><span class="topbtns"><button class="adminlink aerolink" id="aeroBtn" type="button">AERO Login</button><button class="adminlink" id="adminBtn" type="button">Admin</button></span></div></div>
 <main>
   <h1>Status of Re-verification of ASDD Electors</h1>
   <div id="cfgBanner" class="banner">Setup pending: the Google Sheet link is not set in <code>config.js</code>, so data can't be saved yet.</div>
@@ -171,13 +179,14 @@
 
   <section id="adminView" class="hide">
     <div class="adm-head">
-      <h2>Admin · BLO-wise progress</h2>
+      <h2 id="admTitle">Admin · BLO-wise progress</h2>
       <span style="display:flex;gap:8px">
         <button class="btn ghost" id="admRefresh" type="button">Refresh</button>
         <button class="btn ghost" id="admExit" type="button">Logout</button>
       </span>
     </div>
     <div id="admListView">
+    <div class="overall"><div class="lbl"><span id="ovLbl">Overall progress</span><span id="ovPct">0%</span></div><div class="big"><i id="ovBar"></i></div></div>
     <div class="stats" id="admStats"></div>
     <div class="panel filters">
       <input type="search" id="admQ" placeholder="Search PS no., BLO or part name">
@@ -220,6 +229,13 @@
   </section>
 
 </main>
+
+<div class="modal hide" id="aeroModal"><form class="box" id="aeroForm" autocomplete="off">
+  <h3>AERO Login</h3>
+  <select id="aeroSel"><option value="">— Select your name —</option></select>
+  <div class="err" id="aerr"></div>
+  <div class="row"><button class="btn ghost" type="button" id="acancel">Cancel</button><button class="btn" type="submit">Open</button></div>
+</form></div>
 
 <div class="modal hide" id="loginModal"><form class="box" id="loginForm" autocomplete="off">
   <h3>Admin login</h3>
@@ -524,6 +540,16 @@
   window.addEventListener('beforeunload', e => { if(dirty.size){ e.preventDefault(); e.returnValue=''; } });
   /* ---------- Admin ---------- */
   const ADMIN_USER = 'admin', ADMIN_PASS = '2424';
+  // ERO / AEROs and their booths (from District Daily Report, AC-24 Patel Nagar, 22-Oct-2026)
+  const AEROS = [
+    ['Dr. Sabya Sachin, Addl. AERO', 1, 15], ['Ms. Vandana Sharma, Addl. AERO', 16, 30], ['Sh. Hansraj Meena, Addl. AERO', 31, 45],
+    ['Sh. Ramkumar Singh Chauhan, Addl. AERO', 46, 60], ['Ms. Ekpreet Kaur, Addl. AERO', 61, 75], ['Sh. Jaya Krushna Swain, Addl. AERO', 76, 90],
+    ['Ms. Seema Shrivastava, Addl. AERO', 91, 105], ['Ms. Suman Sharma, Addl. AERO', 106, 120], ['Sh. Shiv Kumar Sharma, AERO', 121, 125],
+    ['Sh. Jai Baghwan, Addl. AERO', 126, 140], ['Sh. Yashpal, ERO', 141, 145], ['Sh. Narendra Singh, Addl. AERO', 146, 160],
+    ['Ms. Anupama Taneja, Addl. AERO', 161, 175], ['Ms. Rajni Gupta, Addl. AERO', 176, 190]
+  ].map(([name, from, to], i) => ({ id: String(i), name, from, to }));
+  let viewer = null;                       // null = Admin (all BLOs), otherwise one AERO
+  $('aeroSel').insertAdjacentHTML('beforeend', AEROS.map(a => `<option value="${a.id}">${esc(a.name)} — PS ${a.from} to ${a.to}</option>`).join(''));
   let admList = [], admSort = 'ps', admAsc = true;
   const ss = { get(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ sessionStorage.setItem(k,v); }catch(e){} }, del(k){ try{ sessionStorage.removeItem(k); }catch(e){} } };
 
@@ -532,11 +558,25 @@
     $('selPanel').classList.toggle('hide', on);
     $('work').classList.toggle('hide', on || !cur);
     $('savebar').style.display = (!on && cur) ? 'block' : 'none';
-    $('adminBtn').classList.toggle('hide', on);
+    $('adminBtn').classList.toggle('hide', on); $('aeroBtn').classList.toggle('hide', on);
+    $('admTitle').textContent = viewer ? `${viewer.name} · PS ${viewer.from}–${viewer.to}` : 'Admin · BLO-wise progress';
+    $('admQ').value = ''; $('admF').value = '';
     if(on) loadAdmin();
     window.scrollTo(0,0);
   }
+  $('aeroBtn').addEventListener('click', () => {
+    const last = ss.get('asdd_aero'); $('aeroSel').value = last || ''; $('aerr').textContent = '';
+    $('aeroModal').classList.remove('hide'); $('aeroSel').focus();
+  });
+  $('acancel').addEventListener('click', () => $('aeroModal').classList.add('hide'));
+  $('aeroForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const a = AEROS.find(x => x.id === $('aeroSel').value);
+    if(!a){ $('aerr').textContent = 'Please select your name.'; return; }
+    ss.set('asdd_aero', a.id); viewer = a; $('aeroModal').classList.add('hide'); closePS(); showAdmin(true);
+  });
   $('adminBtn').addEventListener('click', () => {
+    viewer = null;
     if(ss.get('asdd_admin')==='1') return showAdmin(true);
     $('lu').value=''; $('lp').value=''; $('lerr').textContent='';
     $('loginModal').classList.remove('hide'); $('lu').focus();
@@ -548,7 +588,7 @@
       ss.set('asdd_admin','1'); $('loginModal').classList.add('hide'); showAdmin(true);
     } else $('lerr').textContent = 'Wrong username or password.';
   });
-  $('admExit').addEventListener('click', () => { ss.del('asdd_admin'); closePS(); showAdmin(false); });
+  $('admExit').addEventListener('click', () => { if(viewer) ss.del('asdd_aero'); else ss.del('asdd_admin'); viewer = null; closePS(); showAdmin(false); });
   $('admRefresh').addEventListener('click', () => psCur ? openPS(psCur.ps) : loadAdmin());
 
   async function loadAdmin(){
@@ -562,17 +602,21 @@
     }catch(e){ $('admMsg').textContent = 'Could not read Google Sheet: ' + e.message; }
     admList = blos.map(b => { const s = sum[b.ps] || {}, done = s.done||0;
       return {...b, done, pct: b.n ? done/b.n*100 : 0, residing:s.residing||0, notResiding:s.notResiding||0, f6yes:s.f6yes||0, f6no:s.f6no||0}; });
-    const T = k => admList.reduce((a,b) => a + b[k], 0), tot = T('n'), dn = T('done');
+    const scope = inScope(admList);
+    const T = k => scope.reduce((a,b) => a + b[k], 0), tot = T('n'), dn = T('done'), pct = tot ? dn/tot*100 : 0;
+    $('ovLbl').textContent = `${viewer ? viewer.name.split(',')[0] + ' – ' : ''}overall progress · ${dn.toLocaleString('en-IN')} of ${tot.toLocaleString('en-IN')} electors done · ${scope.length} BLOs`;
+    $('ovPct').textContent = pct.toFixed(1) + '%'; $('ovBar').style.width = pct + '%';
     $('admStats').innerHTML = [
-      ['Total ASDD electors', tot.toLocaleString('en-IN')], ['Completed', `${dn.toLocaleString('en-IN')} (${tot?(dn/tot*100).toFixed(1):0}%)`],
-      ['BLOs not started', admList.filter(b => !b.done).length], ['BLOs 100% done', admList.filter(b => b.done >= b.n).length],
+      ['Total ASDD electors', tot.toLocaleString('en-IN')], ['Completed', `${dn.toLocaleString('en-IN')} (${pct.toFixed(1)}%)`],
+      ['BLOs not started', scope.filter(b => !b.done).length], ['BLOs 100% done', scope.filter(b => b.done >= b.n).length],
       ['Residing', T('residing').toLocaleString('en-IN')], ['Form-6 obtained', T('f6yes').toLocaleString('en-IN')]
     ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
     drawAdmin();
   }
+  const inScope = list => viewer ? list.filter(b => b.ps >= viewer.from && b.ps <= viewer.to) : list;
   function drawAdmin(){
     const q = $('admQ').value.trim().toUpperCase(), f = $('admF').value;
-    const list = admList.filter(b => (!q || String(b.ps)===q || b.blo.toUpperCase().includes(q) || b.part.toUpperCase().includes(q))
+    const list = inScope(admList).filter(b => (!q || String(b.ps)===q || b.blo.toUpperCase().includes(q) || b.part.toUpperCase().includes(q))
       && (!f || (f==='zero' && !b.done) || (f==='part' && b.done && b.done<b.n) || (f==='full' && b.done>=b.n)))
       .sort((a,b) => { const x=a[admSort], y=b[admSort]; return (x>y?1:x<y?-1:0) * (admAsc?1:-1); });
     $('admTb').innerHTML = list.map(b => `<tr class="${b.done?'':'zero'}"><td><a href="#" class="pslink" data-ps="${b.ps}" title="Open PS-${b.ps} entries">${b.ps}</a></td><td class="l">${esc(b.blo)}</td><td class="l">${esc(b.part)}</td>
