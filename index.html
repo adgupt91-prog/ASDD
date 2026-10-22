@@ -78,6 +78,11 @@
   #admTable th{cursor:pointer;white-space:nowrap}
   #admTable td.l{text-align:left}
   #admTable tr.zero td{color:#a33}
+  a.pslink{color:var(--blue);font-weight:700;text-decoration:underline;cursor:pointer}
+  #admTb tr.zero td a.pslink{color:var(--blue)}
+  #psTb td.l{text-align:left}
+  #psTb tr.done{background:var(--done)}
+  .ans-r{font-weight:600;color:var(--done-ink)} .ans-nr{font-weight:600;color:#8a4b00} .ans-none{color:#9aa5b4}
   .pbar{width:110px;height:8px;background:#e3e8ee;border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
   .pbar i{display:block;height:100%;background:var(--done-ink)}
 
@@ -162,6 +167,7 @@
         <button class="btn ghost" id="admExit" type="button">Logout</button>
       </span>
     </div>
+    <div id="admListView">
     <div class="stats" id="admStats"></div>
     <div class="panel filters">
       <input type="search" id="admQ" placeholder="Search PS no., BLO or part name">
@@ -175,6 +181,28 @@
       </tr></thead>
       <tbody id="admTb"></tbody>
     </table></div>
+    </div>
+
+    <div id="admPSView" class="hide">
+      <div class="panel" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div><button class="btn ghost" id="psBack" type="button">← All BLOs</button></div>
+        <div style="flex:1;min-width:220px"><b id="psTitle" style="font-size:17px"></b><div class="meta" id="psMeta" style="margin-top:2px"></div></div>
+        <button class="btn" id="psCsv" type="button">Download CSV</button>
+      </div>
+      <div class="stats" id="psStats"></div>
+      <div class="panel filters">
+        <input type="search" id="psQ" placeholder="Search name, EPIC or serial no.">
+        <select id="psF"><option value="done">Submitted only</option><option value="">All electors</option><option value="pending">Not yet submitted</option></select>
+        <select id="psR"><option value="">Residing + Not Residing</option><option>Residing</option><option>Not Residing</option></select>
+        <span class="meta" id="psShown" style="margin:0"></span>
+      </div>
+      <div class="tablewrap"><table id="psTable">
+        <thead><tr><th>S.N.</th><th>Name of the Elector</th><th>Epic No.</th><th>Relation Type</th><th>Relation Name</th><th>Serial No</th>
+          <th>Status of Elector in the ASDD List</th><th>Status after Re-verification (Residing/Not Residing)</th><th>Form-6 Obtained or Not</th></tr></thead>
+        <tbody id="psTb"></tbody>
+      </table>
+      <div id="psNone" class="empty-msg hide">No entries to show.</div></div>
+    </div>
   </section>
 
   <footer><button class="adminlink" id="adminBtn" type="button">Admin</button></footer>
@@ -473,8 +501,8 @@
       ss.set('asdd_admin','1'); $('loginModal').classList.add('hide'); showAdmin(true);
     } else $('lerr').textContent = 'Wrong username or password.';
   });
-  $('admExit').addEventListener('click', () => { ss.del('asdd_admin'); showAdmin(false); });
-  $('admRefresh').addEventListener('click', loadAdmin);
+  $('admExit').addEventListener('click', () => { ss.del('asdd_admin'); closePS(); showAdmin(false); });
+  $('admRefresh').addEventListener('click', () => psCur ? openPS(psCur.ps) : loadAdmin());
 
   async function loadAdmin(){
     $('admMsg').textContent = 'Loading…';
@@ -500,13 +528,74 @@
     const list = admList.filter(b => (!q || String(b.ps)===q || b.blo.toUpperCase().includes(q) || b.part.toUpperCase().includes(q))
       && (!f || (f==='zero' && !b.done) || (f==='part' && b.done && b.done<b.n) || (f==='full' && b.done>=b.n)))
       .sort((a,b) => { const x=a[admSort], y=b[admSort]; return (x>y?1:x<y?-1:0) * (admAsc?1:-1); });
-    $('admTb').innerHTML = list.map(b => `<tr class="${b.done?'':'zero'}"><td>${b.ps}</td><td class="l">${esc(b.blo)}</td><td class="l">${esc(b.part)}</td>
+    $('admTb').innerHTML = list.map(b => `<tr class="${b.done?'':'zero'}"><td><a href="#" class="pslink" data-ps="${b.ps}" title="Open PS-${b.ps} entries">${b.ps}</a></td><td class="l">${esc(b.blo)}</td><td class="l">${esc(b.part)}</td>
       <td>${b.n}</td><td>${b.done}</td><td><span class="pbar"><i style="width:${b.pct}%"></i></span>${b.pct.toFixed(0)}%</td>
       <td>${b.residing}</td><td>${b.notResiding}</td><td>${b.f6yes}</td><td>${b.f6no}</td></tr>`).join('');
   }
   document.querySelectorAll('#admTable th').forEach(th => th.addEventListener('click', () => {
     const k = th.dataset.s; admAsc = admSort===k ? !admAsc : true; admSort = k; drawAdmin(); }));
   $('admQ').addEventListener('input', drawAdmin); $('admF').addEventListener('change', drawAdmin);
+
+  /* ---------- Admin: one PS's entries ---------- */
+  let psCur = null, psRows = [], psSaved = {};
+  $('admTb').addEventListener('click', e => { const a = e.target.closest('a.pslink'); if(!a) return; e.preventDefault(); openPS(Number(a.dataset.ps)); });
+  function closePS(){ psCur = null; $('admPSView').classList.add('hide'); $('admListView').classList.remove('hide'); }
+  $('psBack').addEventListener('click', () => { closePS(); drawAdmin(); window.scrollTo(0,0); });
+  async function openPS(ps){
+    psCur = blos.find(b => b.ps === ps); if(!psCur) return;
+    $('admListView').classList.add('hide'); $('admPSView').classList.remove('hide'); window.scrollTo(0,0);
+    $('psTitle').textContent = `PS-${psCur.ps} – ${psCur.blo}`;
+    $('psMeta').textContent = `Part ${psCur.ps} – ${psCur.part} · ${psCur.n} electors in ASDD list · loading…`;
+    $('psTb').innerHTML = ''; $('psStats').innerHTML = '';
+    try{
+      const [data, sv] = await Promise.all([
+        getJSON(`data/g${Math.floor((ps-1)/19)+1}.json`).then(g => g[ps]),
+        hasBackend ? backendGet(`${URL_}?action=get&ps=${ps}`) : Promise.resolve({ok:true, data:{}})
+      ]);
+      if(!psCur || psCur.ps !== ps) return;
+      if(!sv.ok) throw new Error(sv.error || 'Server error');
+      psRows = data; psSaved = sv.data || {};
+      $('psMeta').textContent = `Part ${psCur.ps} – ${psCur.part} · live from Google Sheet at ${new Date().toLocaleTimeString()}`;
+      const done = psRows.filter(r => isDone(r[1])), cnt = (k, v) => done.filter(r => psSaved[r[1]][k] === v).length;
+      $('psStats').innerHTML = [
+        ['Total electors', psRows.length], ['Submitted', `${done.length} (${psRows.length ? (done.length/psRows.length*100).toFixed(0) : 0}%)`],
+        ['Pending', psRows.length - done.length], ['Residing', cnt(0,'Residing')], ['Not Residing', cnt(0,'Not Residing')], ['Form-6 Yes', cnt(1,'Yes')]
+      ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+      drawPS();
+    }catch(e){ $('psMeta').textContent = 'Could not read Google Sheet: ' + e.message + ' – tap Refresh to try again.'; }
+  }
+  const isDone = ep => !!(psSaved[ep] && psSaved[ep][0] && psSaved[ep][1]);
+  function psFiltered(){
+    const q = $('psQ').value.trim().toUpperCase(), f = $('psF').value, rf = $('psR').value;
+    return psRows.filter(r => { const d = isDone(r[1]);
+      if(f==='done' && !d) return false; if(f==='pending' && d) return false;
+      if(rf && (!d || psSaved[r[1]][0] !== rf)) return false;
+      return !q || r[2].toUpperCase().includes(q) || r[1].includes(q) || String(r[0])===q || String(r[6])===q; });
+  }
+  function drawPS(){
+    const list = psFiltered();
+    $('psTb').innerHTML = list.map(r => { const a = psSaved[r[1]] || ['',''], d = isDone(r[1]);
+      const res = a[0] ? `<span class="${a[0]==='Residing'?'ans-r':'ans-nr'}">${esc(a[0])}</span>` : '<span class="ans-none">—</span>';
+      const f6 = a[1] ? `<b>${esc(a[1])}</b>` : '<span class="ans-none">—</span>';
+      return `<tr class="${d?'done':''}"><td>${r[0]}</td><td class="l">${esc(r[2])}</td><td>${esc(r[1])}</td><td>${esc(r[3])}</td><td class="l">${esc(r[4])}</td><td>${esc(r[6])}</td>
+        <td><span class="tag ${tagCls(r[9])}">${esc(r[9])}</span></td><td>${res}</td><td>${f6}</td></tr>`; }).join('');
+    $('psNone').classList.toggle('hide', list.length > 0);
+    $('psShown').textContent = `Showing ${list.length} of ${psRows.length}`;
+  }
+  let pt; $('psQ').addEventListener('input', () => { clearTimeout(pt); pt = setTimeout(drawPS, 150); });
+  $('psF').addEventListener('change', drawPS); $('psR').addEventListener('change', drawPS);
+  $('psCsv').addEventListener('click', () => {
+    if(!psCur) return;
+    const head = ['District Name','AC No','AC Name','Part No','Part Name','BLO Name','S.No','Name of the Elector','EPIC No','Relation Type','Relation Name',
+      'Old Part No','Old Serial No','Age','Gender','Status of Elector in the ASDD List','Status after Re-verification (Residing/Not Residing)','Form-6 Obtained or Not'];
+    const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+    const lines = [head.map(q).join(',')].concat(psFiltered().map(r => { const a = psSaved[r[1]] || ['',''];
+      return ['CENTRAL',24,'PATEL NAGAR',psCur.ps,psCur.part,psCur.blo,r[0],r[2],r[1],r[3],r[4],r[5],r[6],r[7],r[8],r[9],a[0],a[1]].map(q).join(','); }));
+    const blob = new Blob(['\ufeff' + lines.join('\r\n')], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `PS-${psCur.ps}_${psCur.blo}_ASDD_${$('psF').value || 'all'}.csv`; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  });
 
   init().catch(e => setMsg('Failed to start: '+e.message,'err'));
 })();
