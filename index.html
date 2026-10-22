@@ -82,7 +82,7 @@
   .overall .lbl{display:flex;justify-content:space-between;font-weight:600;margin-bottom:6px}
   .overall .big{height:14px;background:#e3e8ee;border-radius:7px;overflow:hidden}
   .overall .big i{display:block;height:100%;background:var(--done-ink);transition:width .4s}
-  @media (max-width:600px){ .topbar{flex-wrap:nowrap;padding:10px 12px} .topbar b{font-size:13px;line-height:1.3} .topbar span{display:none} .adminlink{font-size:14px;padding:8px 12px;flex-shrink:0} }
+  @media (max-width:600px){ .topbar{flex-wrap:wrap;padding:10px 12px;gap:8px} .topbar b{font-size:13px;line-height:1.3;width:100%} .topbar .topsub{display:none} .topright{margin-left:auto} .adminlink{font-size:14px;padding:8px 14px;flex-shrink:0} }
   .modal{position:fixed;inset:0;background:rgba(20,28,40,.45);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
   .modal .box{background:#fff;border-radius:12px;padding:20px;width:100%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
   .modal h3{margin:0 0 14px}
@@ -128,7 +128,7 @@
 </style>
 </head>
 <body>
-<div class="topbar"><b>District CENTRAL · AC 24 – PATEL NAGAR</b><div class="topright"><span>BLO data entry · ASDD re-verification</span><span class="topbtns"><button class="adminlink aerolink" id="aeroBtn" type="button">AERO Login</button><button class="adminlink" id="adminBtn" type="button">Admin</button></span></div></div>
+<div class="topbar"><b>District CENTRAL · AC 24 – PATEL NAGAR</b><div class="topright"><span class="topsub">BLO data entry · ASDD re-verification</span><span class="topbtns"><button class="adminlink aerolink" id="aeroBtn" type="button">AERO Login</button><button class="adminlink" id="adminBtn" type="button">Admin</button></span></div></div>
 <main>
   <h1>Status of Re-verification of ASDD Electors</h1>
   <div id="cfgBanner" class="banner">Setup pending: the Google Sheet link is not set in <code>config.js</code>, so data can't be saved yet.</div>
