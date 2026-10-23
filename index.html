@@ -44,14 +44,7 @@
   td select{min-width:130px;padding:6px 8px}
   td select.empty{border-color:#c4472f;background:#fff7f5}
   td select.frozen{background:#eef1f4;color:#4a5260;border-color:#c3cad3;cursor:not-allowed;opacity:1}
-  td.c-det{min-width:210px;text-align:left}
-  .det-lbl{font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px}
-  .det-lbl .req{color:var(--err)}
-  td input.det{width:100%;font:inherit;border:1px solid #9aa5b4;border-radius:6px;padding:7px 9px;background:#fff;color:var(--ink)}
-  td input.det.empty{border-color:#c4472f;background:#fff7f5}
-  .det-na{color:#9aa5b4;font-size:13px}
-  tr.locked td input.det{background:#eef1f4;color:#4a5260;border-color:#c3cad3;cursor:not-allowed}
-  tr.locked td select{background:#eef1f4;color:#4a5260;border-color:#c3cad3;cursor:not-allowed}
+  tr.locked.dirty .lockmsg{color:#b26a00}
   .lockmsg{font-size:12px;font-weight:600;color:var(--done-ink);margin-top:4px}
   tr.lockerr .lockmsg{color:var(--err)}
   tr.lockerr td.c-sel select{border-color:var(--err)}
@@ -168,7 +161,6 @@
           <th>Relation Type</th><th>Relation Name</th><th>Part No</th><th>Serial No</th><th>Status of Elector in the ASDD List</th>
           <th>Status of Elector after Re-verification by BLOs (Residing/Not Residing)</th>
           <th>If found to be eligible for Enrolment, Form-6 Obtained or Not</th>
-          <th>Form 6 Reference Number / Reason why Form 6 not obtained/filled</th>
         </tr></thead>
         <tbody id="tb"></tbody>
       </table>
@@ -220,8 +212,7 @@
       </div>
       <div class="tablewrap"><table id="psTable">
         <thead><tr><th>S.N.</th><th>Name of the Elector</th><th>Epic No.</th><th>Relation Type</th><th>Relation Name</th><th>Serial No</th>
-          <th>Status of Elector in the ASDD List</th><th>Status after Re-verification (Residing/Not Residing)</th><th>Form-6 Obtained or Not</th>
-          <th>Form 6 Reference Number</th><th>Reason why Form 6 not obtained/filled</th></tr></thead>
+          <th>Status of Elector in the ASDD List</th><th>Status after Re-verification (Residing/Not Residing)</th><th>Form-6 Obtained or Not</th></tr></thead>
         <tbody id="psTb"></tbody>
       </table>
       <div id="psNone" class="empty-msg hide">No entries to show.</div></div>
@@ -274,18 +265,9 @@
   // Form-6 dropdown depends on residing status: "Not Residing" => frozen "No"
   const f6Opts = a => a[0]==='Not Residing' ? '<option selected>No</option>' : opts(F6, a[1]);
   const f6Attr = a => a[0]==='Not Residing' ? 'class="frozen" disabled title="Not Residing – Form-6 is automatically No"' : `class="${a[1]?'':'empty'}"`;
-  // Third answer: Residing+Yes → Form 6 Reference Number, Residing+No → Reason; Not Residing → nothing
-  const DET = { ref: 'Form 6 Reference Number', reason: 'Reason why Form 6 not obtained/filled' };
-  const detKind = a => a[0]==='Residing' ? (a[1]==='Yes' ? 'ref' : a[1]==='No' ? 'reason' : null) : null;
-  const isComplete = a => !!(a[0] && a[1] && (!detKind(a) || (a[2]||'').trim()));
-  const norm = a => { const k = detKind(a); return [a[0]||'', a[1]||'', k ? (a[2]||'').replace(/\s+/g,' ').trim() : '']; };
-  function detCell(a, lk){
-    const k = detKind(a), v = a[2] || '';
-    if(!k) return `<span class="lbl-m">Form 6 Ref. No. / Reason</span><span class="det-na">${a[0]==='Not Residing' ? 'Not required (Not Residing)' : '— choose Residing + Form-6 first'}</span>`;
-    return `<div class="det-lbl">${DET[k]} <span class="req">*</span></div>`
-      + `<input data-k="2" class="det${v.trim()?'':' empty'}" ${k==='reason'?'maxlength="250"':'maxlength="50"'} autocomplete="off" `
-      + `placeholder="${k==='ref' ? 'Enter Form 6 Reference Number' : 'Write the reason'}" value="${esc(v)}"${lk?' readonly':''}>`;
-  }
+  const detKind = () => null;
+  const isComplete = a => !!(a[0] && a[1]);
+  const norm = a => [a[0]||'', a[1]||'', ''];      // Ref No / Reason no longer collected
   const setMsg = (t, cls) => { const m=$('msg'); m.textContent=t; m.className=cls||''; };
 
   async function getJSON(u){ const r = await fetch(u, {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
@@ -354,22 +336,17 @@
       render(); updateStats();
       if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
-      else setMsg(Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Fill both dropdowns (and Form 6 Ref. No. / Reason when Residing) for each elector, then tap Submit.');
+      else setMsg(Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Fill both dropdowns for each elector, then tap Submit.');
     }catch(e){ setMsg('Failed to load list: '+e.message,'err'); }
     finally{ $('loader').classList.add('hide'); }
   }
 
-  const isLocked = ep => !!(saved[ep] && saved[ep][0] && saved[ep][1]);
-  const LOCK_OK = '✓ Submitted', LOCK_ERR = 'Data already submitted';
-  function flagLocked(tr){
-    const ep = tr.dataset.ep; errEp.add(ep);
-    tr.classList.add('lockerr');
-    const m = tr.querySelector('.lockmsg'); if(m) m.textContent = LOCK_ERR;
-    tr.querySelectorAll('select').forEach((sel,k) => sel.value = saved[ep][k]);
-    const inp = tr.querySelector('input.det'); if(inp) inp.value = saved[ep][2] || '';
-    setMsg(`Data already submitted for ${tr.querySelector('.c-name').textContent} – it cannot be changed.`,'err');
-  }
-  function isChanged(ep){ const s = saved[ep] || ['','','']; const a = ans[ep]; return (a[0]||'')!==(s[0]||'') || (a[1]||'')!==(s[1]||'') || (a[2]||'')!==(s[2]||''); }
+  // Submitted entries can now be edited by the BLO; re-submitting overwrites the row in the sheet.
+  const isSubmitted = ep => !!(saved[ep] && saved[ep][0] && saved[ep][1]);
+  const isLocked = () => false;
+  const LOCK_OK = '✓ Submitted', LOCK_EDIT = '✎ Edited – tap Submit to update', LOCK_ERR = 'Not updated – tap Reload';
+  function flagLocked(){}
+  function isChanged(ep){ const s = saved[ep] || ['','','']; const a = ans[ep]; return (a[0]||'')!==(s[0]||'') || (a[1]||'')!==(s[1]||''); }
 
   function render(){
     const q = $('q').value.trim().toUpperCase(), fs = $('fStatus').value, fw = $('fShow').value;
@@ -382,7 +359,7 @@
       if(fw==='done' && !done) continue;
       if(q && !(name.toUpperCase().includes(q) || epic.includes(q) || String(sn)===q || String(os)===q)) continue;
       n++;
-      const lk = isLocked(epic), le = lk && errEp.has(epic);
+      const lk = isSubmitted(epic), le = lk && errEp.has(epic);
       html += `<tr data-ep="${epic}" class="${done?'done':''}${dirty.has(epic)?' dirty':''}${lk?' locked':''}${le?' lockerr':''}">
         <td class="c-sn">${sn}</td><td class="c-dist">CENTRAL</td><td class="c-acno">24</td><td class="c-acname">PATEL NAGAR</td>
         <td class="c-name">${esc(name)}</td><td><span class="lbl-m">EPIC No.</span>${epic}</td>
@@ -390,8 +367,7 @@
         <td class="c-part">${esc(op)}</td><td><span class="lbl-m">Serial No</span>${esc(os)}</td>
         <td class="c-rel"><span class="lbl-m">Status in ASDD list</span><span class="tag ${tagCls(st)}">${esc(st)}</span></td>
         <td class="c-sel"><span class="lbl-m">After re-verification</span><select data-k="0" class="${a[0]?'':'empty'}">${opts(RES,a[0])}</select></td>
-        <td class="c-sel"><span class="lbl-m">Form-6 obtained?</span><select data-k="1" ${f6Attr(a)}>${f6Opts(a)}</select>${lk?`<div class="lockmsg">${le?LOCK_ERR:LOCK_OK}</div>`:''}</td>
-        <td class="c-sel c-det">${detCell(a, lk)}</td>
+        <td class="c-sel"><span class="lbl-m">Form-6 obtained?</span><select data-k="1" ${f6Attr(a)}>${f6Opts(a)}</select>${lk?`<div class="lockmsg">${le?LOCK_ERR:dirty.has(epic)?LOCK_EDIT:LOCK_OK}</div>`:''}</td>
       </tr>`;
     }
     $('tb').innerHTML = html;
@@ -418,7 +394,6 @@
     const sel = e.target; if(sel.tagName!=='SELECT') return;
     const tr = sel.closest('tr'), ep = tr.dataset.ep, k = +sel.dataset.k;
     if(isLocked(ep)){ flagLocked(tr); return; }
-    const kindBefore = detKind(ans[ep]);
     ans[ep][k] = sel.value;
     sel.classList.toggle('empty', !sel.value);
     if(k===0){
@@ -429,30 +404,15 @@
       tmp.innerHTML = `<select data-k="1" ${f6Attr(ans[ep])}>${f6Opts(ans[ep])}</select>`;
       f.replaceWith(tmp.firstChild);
     }
-    const kindAfter = detKind(ans[ep]);
-    if(kindAfter !== kindBefore){                    // Ref No ↔ Reason ↔ nothing: start that field afresh
-      ans[ep][2] = '';
-      tr.querySelector('td.c-det').innerHTML = detCell(ans[ep], false);
-    }else if(!kindAfter){                            // no box needed – just refresh the hint text
-      tr.querySelector('td.c-det').innerHTML = detCell(ans[ep], false);
-    }
     markRow(tr, ep);
   });
   function markRow(tr, ep){
     if(isChanged(ep)) dirty.add(ep); else dirty.delete(ep);
     tr.classList.toggle('dirty', dirty.has(ep));
     tr.classList.toggle('done', isComplete(ans[ep]));
+    const lm = tr.querySelector('.lockmsg'); if(lm) lm.textContent = dirty.has(ep) ? LOCK_EDIT : LOCK_OK;
     saveDraft(); updateStats();
   }
-  $('tb').addEventListener('input', e => {
-    const inp = e.target; if(!inp.classList || !inp.classList.contains('det')) return;
-    const tr = inp.closest('tr'), ep = tr.dataset.ep;
-    if(isLocked(ep)){ flagLocked(tr); return; }
-    ans[ep][2] = inp.value;
-    inp.classList.toggle('empty', !inp.value.trim());
-    markRow(tr, ep);
-  });
-
   // Stop the dropdown from even opening on a submitted row
   const blockLocked = e => {
     const sel = e.target; if(sel.tagName!=='SELECT' && !(sel.tagName==='INPUT' && sel.classList.contains('det'))) return;
@@ -467,9 +427,10 @@
     const pend = rows.filter(r => dirty.has(r[1]) && !isLocked(r[1]));
     const list = pend.filter(r => isComplete(ans[r[1]]));
     const half = pend.length - list.length;
-    if(!list.length){ setMsg('Incomplete: fill both dropdowns, and for Residing also the Form 6 Reference Number (if Yes) or the Reason (if No). Once submitted, it cannot be changed.','err'); return; }
-    if(!confirm(`Submit ${list.length} elector(s)? Once submitted, these entries CANNOT be changed.`
-      + (half ? `\n\n${half} incomplete elector(s) (missing dropdown / Form 6 Ref. No. / Reason) will NOT be submitted.` : ''))) return;
+    if(!list.length){ setMsg('Incomplete: fill both dropdowns for each elector.','err'); return; }
+    const nUpd = list.filter(r => isSubmitted(r[1])).length, nNew = list.length - nUpd;
+    if(!confirm(`Submit ${list.length} elector(s)?` + (nNew ? `\n• ${nNew} new` : '') + (nUpd ? `\n• ${nUpd} already submitted – their old answers will be REPLACED` : '')
+      + (half ? `\n\n${half} incomplete elector(s) (a dropdown not selected) will NOT be submitted.` : ''))) return;
     busy = true; $('save').disabled = true; $('save').textContent = 'Saving…';
     setMsg(`Saving ${list.length} elector(s)…`);
     const payload = { ps: cur.ps, blo: cur.blo, partName: cur.part,
@@ -510,7 +471,7 @@
   // Applies the sheet's real state to the page. Returns counts.
   function applyTruth(sent, truth){
     const pad = x => [x[0]||'', x[1]||'', x[2]||''];
-    const same = (a, b) => !!(a && b && a[0]===b[0] && a[1]===b[1] && (a[2]||'')===(b[2]||''));
+    const same = (a, b) => !!(a && b && a[0]===b[0] && a[1]===b[1]);
     const r = { saved:0, taken:0, failed:0 };
     for(const ep in sent){
       const t = truth[ep];
@@ -524,7 +485,7 @@
     const parts = [];
     if(r.saved)  parts.push(`✓ ${r.saved} elector(s) SAVED to Google Sheet`);
     if(r.failed) parts.push(`✗ ${r.failed} elector(s) NOT saved – please tap Submit again`);
-    if(r.taken)  parts.push(`✗ ${r.taken} elector(s) NOT saved – data already submitted (red)`);
+    if(r.taken)  parts.push(`✗ ${r.taken} elector(s) NOT updated – sheet has a different answer, tap "Reload from sheet" (red)`);
     if(half)     parts.push(`${half} half-filled elector(s) still pending`);
     return parts.join(' · ') + ` (${new Date().toLocaleTimeString()})`;
   }
@@ -668,9 +629,8 @@
     $('psTb').innerHTML = list.map(r => { const a = psSaved[r[1]] || ['',''], d = isDone(r[1]);
       const res = a[0] ? `<span class="${a[0]==='Residing'?'ans-r':'ans-nr'}">${esc(a[0])}</span>` : '<span class="ans-none">—</span>';
       const f6 = a[1] ? `<b>${esc(a[1])}</b>` : '<span class="ans-none">—</span>';
-      const k = detKind(a), ref = k==='ref' && a[2] ? esc(a[2]) : '<span class="ans-none">—</span>', why = k==='reason' && a[2] ? esc(a[2]) : '<span class="ans-none">—</span>';
       return `<tr class="${d?'done':''}"><td>${r[0]}</td><td class="l">${esc(r[2])}</td><td>${esc(r[1])}</td><td>${esc(r[3])}</td><td class="l">${esc(r[4])}</td><td>${esc(r[6])}</td>
-        <td><span class="tag ${tagCls(r[9])}">${esc(r[9])}</span></td><td>${res}</td><td>${f6}</td><td>${ref}</td><td class="l">${why}</td></tr>`; }).join('');
+        <td><span class="tag ${tagCls(r[9])}">${esc(r[9])}</span></td><td>${res}</td><td>${f6}</td></tr>`; }).join('');
     $('psNone').classList.toggle('hide', list.length > 0);
     $('psShown').textContent = `Showing ${list.length} of ${psRows.length}`;
   }
@@ -693,10 +653,9 @@
   async function loadLibs(k){ for(const src of LIBS[k]) await loadScript(src); }
   const FILTER_NAME = { done:'submitted', '':'all', pending:'pending' };
   const HEAD = ['S.No','Name of the Elector','EPIC No','Relation Type','Relation Name','Old Part No','Old Serial No','Age','Gender',
-    'Status of Elector in the ASDD List','Status after Re-verification (Residing/Not Residing)','Form-6 Obtained or Not',
-    'Form 6 Reference Number','Reason why Form 6 not obtained/filled'];
-  function exportRows(){ return psFiltered().map(r => { const a = psSaved[r[1]] || ['','','']; const k = detKind(a);
-    return [Number(r[0]), r[2], r[1], r[3], r[4], r[5], Number(r[6]) || r[6], Number(r[7]) || r[7], r[8], r[9], a[0], a[1], k==='ref' ? (a[2]||'') : '', k==='reason' ? (a[2]||'') : '']; }); }
+    'Status of Elector in the ASDD List','Status after Re-verification (Residing/Not Residing)','Form-6 Obtained or Not'];
+  function exportRows(){ return psFiltered().map(r => { const a = psSaved[r[1]] || ['','',''];
+    return [Number(r[0]), r[2], r[1], r[3], r[4], r[5], Number(r[6]) || r[6], Number(r[7]) || r[7], r[8], r[9], a[0], a[1]]; }); }
   function exportInfo(){
     const done = psRows.filter(r => isDone(r[1])), c = (k, v) => done.filter(r => psSaved[r[1]][k] === v).length;
     return { name: `PS-${psCur.ps}_${psCur.blo}_ASDD_${FILTER_NAME[$('psF').value]}`.replace(/[^\w\-]+/g,'_'),
@@ -741,15 +700,15 @@
     doc.text(`Total: ${I.total}   Submitted: ${I.done}   Pending: ${I.pending}   Residing: ${I.res}   Not Residing: ${I.nres}   Form-6 Yes: ${I.yes}   Form-6 No: ${I.no}`, W/2, 69, { align:'center' });
     doc.setFontSize(8.5); doc.setTextColor(90);
     doc.text(`Showing: ${I.view} (${rows.length} rows)   |   Downloaded: ${I.when}`, W/2, 82, { align:'center' }); doc.setTextColor(0);
-    const cols = [0,1,2,3,4,6,9,10,11,12,13];    // S.No, Name, EPIC, Rel type, Rel name, Serial, ASDD status, Residing, Form-6, Ref No, Reason
+    const cols = [0,1,2,3,4,6,9,10,11];          // S.No, Name, EPIC, Rel type, Rel name, Serial, ASDD status, Residing, Form-6
     doc.autoTable({
       startY: 92, margin: { left: 24, right: 24, bottom: 30 },
-      head: [['S.N.','Name of the Elector','EPIC No.','Relation Type','Relation Name','Serial No','Status in ASDD List','Status after Re-verification','Form-6 Obtained','Form 6 Reference No.','Reason Form 6 not obtained/filled']],
-      body: rows.length ? rows.map(r => cols.map(i => r[i] === '' ? '-' : r[i])) : [['', 'No entries to show', '', '', '', '', '', '', '', '', '']],
+      head: [['S.N.','Name of the Elector','EPIC No.','Relation Type','Relation Name','Serial No','Status in ASDD List','Status after Re-verification','Form-6 Obtained']],
+      body: rows.length ? rows.map(r => cols.map(i => r[i] === '' ? '-' : r[i])) : [['', 'No entries to show', '', '', '', '', '', '', '']],
       styles: { fontSize: 7.5, cellPadding: 3, valign: 'middle', lineColor: [213,219,227], lineWidth: 0.4, overflow: 'linebreak' },
       headStyles: { fillColor: [26,95,85], textColor: 255, fontStyle: 'bold', halign: 'center' },
       alternateRowStyles: { fillColor: [242,246,248] },
-      columnStyles: { 0:{halign:'center',cellWidth:32}, 2:{halign:'center'}, 3:{halign:'center'}, 5:{halign:'center',cellWidth:44}, 6:{halign:'center'}, 7:{halign:'center',fontStyle:'bold'}, 8:{halign:'center',fontStyle:'bold',cellWidth:48}, 9:{halign:'center',cellWidth:80}, 10:{cellWidth:120} },
+      columnStyles: { 0:{halign:'center',cellWidth:32}, 2:{halign:'center'}, 3:{halign:'center'}, 5:{halign:'center',cellWidth:44}, 6:{halign:'center'}, 7:{halign:'center',fontStyle:'bold'}, 8:{halign:'center',fontStyle:'bold',cellWidth:60} },
       didDrawPage: d => { doc.setFontSize(8); doc.setTextColor(120);
         doc.text(`PS-${psCur.ps} ${psCur.blo} - Page ${doc.internal.getNumberOfPages()}`, W - 24, doc.internal.pageSize.getHeight() - 14, { align:'right' }); doc.setTextColor(0); }
     });
