@@ -69,6 +69,9 @@
   .adminlink:hover{background:#eaf0fb}
   .aerolink{background:#ffd54a;color:#4a3800}
   .aerolink:hover{background:#ffe27a}
+  .replink{background:#1a5f55;color:#fff}
+  .replink:hover{background:#237568}
+  .replink:disabled{opacity:.75;cursor:wait}
   .topbtns{display:flex;gap:8px}
   #aeroSel{width:100%;font:inherit;font-size:15px;border:1px solid #9aa5b4;border-radius:6px;padding:9px 10px;margin-bottom:10px}
   .overall{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:12px}
@@ -121,7 +124,7 @@
 </style>
 </head>
 <body>
-<div class="topbar"><b>District CENTRAL · AC 24 – PATEL NAGAR</b><div class="topright"><span class="topsub">BLO data entry · ASDD re-verification</span><span class="topbtns"><button class="adminlink aerolink" id="aeroBtn" type="button">AERO Login</button><button class="adminlink" id="adminBtn" type="button">Admin</button></span></div></div>
+<div class="topbar"><b>District CENTRAL · AC 24 – PATEL NAGAR</b><div class="topright"><span class="topsub">BLO data entry · ASDD re-verification</span><span class="topbtns"><button class="adminlink replink" id="dailyBtn" type="button" title="Download today's ASDD re-verification progress report (PDF)">Daily Report</button><button class="adminlink aerolink" id="aeroBtn" type="button">AERO Login</button><button class="adminlink" id="adminBtn" type="button">Admin</button></span></div></div>
 <main>
   <h1>Status of Re-verification of ASDD Electors</h1>
   <div id="cfgBanner" class="banner">Setup pending: the Google Sheet link is not set in <code>config.js</code>, so data can't be saved yet.</div>
@@ -689,6 +692,66 @@
     XLSX.utils.book_append_sheet(wb, sum, 'Summary');
     XLSX.writeFile(wb, I.name + '.xlsx');
   }));
+  /* ---------- Daily Report (AC-level PDF for the district) ---------- */
+  const AC_ASDD_TOTAL = 80346;                       // fixed: ASDD cases in AC-24
+  async function imgData(src){
+    const r = await fetch(src, {cache:'no-store'}); if(!r.ok) throw new Error('signature image missing');
+    const b = await r.blob();
+    return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); });
+  }
+  $('dailyBtn').addEventListener('click', async () => {
+    const btn = $('dailyBtn'), old = btn.textContent;
+    if(!hasBackend){ alert('Google Sheet link not set in config.js.'); return; }
+    btn.disabled = true; btn.textContent = 'Preparing…';
+    try{
+      const [sv, sign] = await Promise.all([
+        backendGet(URL_ + '?action=summary', n => { btn.textContent = `Server busy, retrying (${n})…`; }),
+        imgData('ero-sign.jpg'),
+        loadLibs('pdf')
+      ]);
+      if(!sv.ok) throw new Error(sv.error || 'Server error');
+      const sum = sv.data || {};
+      let covered = 0, f6 = 0;
+      blos.forEach(b => { const x = sum[b.ps] || {}; covered += x.done || 0; f6 += x.f6yes || 0; });
+      const matched = covered - f6;
+
+      const d = new Date();
+      const dateTxt = `${d.getDate()} ${d.toLocaleString('en-US', {month:'short'}).toLowerCase()} ${String(d.getFullYear()).slice(-2)}`;
+
+      const doc = new window.jspdf.jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+      doc.setFont('helvetica','bold'); doc.setFontSize(11);
+      doc.text('Plz share progress on re-verification of your district, AC wise: -', 421, 80, { align:'center' });
+      doc.text('Name of the District', 52, 111);
+      doc.text('central', 207, 111);
+      doc.text('date-' + dateTxt, 371, 111);
+
+      doc.autoTable({
+        startY: 129, margin: { left: 49, right: 55 }, theme: 'grid', tableWidth: 738,
+        head: [['Sr No.', 'AC No.', 'AC Name', 'Number of ASDD cases in AC', 'Number of ASDD cases covered in re-verification',
+                'Number of cases found correct and matches the report of ASDD ( prepared during enumeration phase)',
+                'Number of cases contradicting/ Mismatch in the report of ASDD ( prepared during enumeration phase)',
+                'Number of ASDD from whom form-6 obtained']],
+        body: [[1, 24, 'PATEL NAGAR', AC_ASDD_TOTAL, covered, matched, f6, f6]],
+        styles: { font:'times', fontSize:10, textColor:0, lineColor:0, lineWidth:0.8, cellPadding:{top:2,right:3,bottom:2,left:3}, valign:'top' },
+        headStyles: { fillColor:false, fontStyle:'bold', halign:'left', minCellHeight:104 },
+        bodyStyles: { fontStyle:'bold', font:'helvetica', fontSize:10.5 },
+        columnStyles: { 0:{cellWidth:118, halign:'right'}, 1:{cellWidth:38, halign:'right'}, 2:{cellWidth:88, halign:'left'},
+                        3:{cellWidth:79, halign:'right'}, 4:{cellWidth:86, halign:'right'}, 5:{cellWidth:110, halign:'right'},
+                        6:{cellWidth:109, halign:'right'}, 7:{cellWidth:110, halign:'right'} },
+        didParseCell: c => { if(c.section === 'head') c.cell.styles.halign = 'left'; }
+      });
+
+      // ERO signature with "SDM/ERO, AC-24 PATEL NAGAR" (as in the original report)
+      const y = doc.lastAutoTable.finalY + 32;
+      doc.addImage(sign, 'JPEG', 598, y, 150, 116);
+
+      doc.save(`ASDD_report_AC24_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.pdf`);
+    }catch(e){
+      alert('Could not make the Daily Report: ' + e.message);
+    }finally{
+      btn.disabled = false; btn.textContent = old;
+    }
+  });
   $('psPdf').addEventListener('click', () => psCur && withBusy($('psPdf'), 'Preparing…', async () => {
     await loadLibs('pdf');
     const I = exportInfo(), rows = exportRows();
