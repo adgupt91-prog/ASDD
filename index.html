@@ -148,7 +148,7 @@
     </div>
 
     <div class="panel markall">
-      <span class="note">If none of your electors are residing, mark them all at once. Form-6 is set to "No" automatically and the data is submitted to the sheet.</span>
+      <span class="note">If none of your electors are residing, select them all at once. Form-6 is set to "No" automatically. Check the list, then tap Submit.</span>
       <button class="btn danger" id="markAllNR" type="button">Mark all Not Residing</button>
     </div>
 
@@ -393,7 +393,7 @@
     $('sRes').textContent = res; $('sF6').textContent = f6;
     $('sBar').style.width = (rows.length ? done/rows.length*100 : 0)+'%';
     $('save').disabled = busy || !dirty.size || !hasBackend;
-    $('markAllNR').disabled = busy || !rows.length || !hasBackend;
+    $('markAllNR').disabled = busy || !rows.length;
     if(!busy && dirty.size) setMsg(`${dirty.size} unsaved change(s). Tap Submit to save to Google Sheet.`,'warn');
   }
 
@@ -434,15 +434,14 @@
   };
   ['mousedown','touchstart','keydown'].forEach(ev => $('tb').addEventListener(ev, blockLocked, {passive:false}));
 
-  async function submit(skipConfirm){
-    if(skipConfirm !== true) skipConfirm = false;   // click events pass an Event object
+  async function submit(){
     if(!dirty.size || busy) return;
     const pend = rows.filter(r => dirty.has(r[1]) && !isLocked(r[1]));
     const list = pend.filter(r => isComplete(ans[r[1]]));
     const half = pend.length - list.length;
     if(!list.length){ setMsg('Incomplete: fill both dropdowns for each elector.','err'); return; }
     const nUpd = list.filter(r => isSubmitted(r[1])).length, nNew = list.length - nUpd;
-    if(!skipConfirm && !confirm(`Submit ${list.length} elector(s)?` + (nNew ? `\n• ${nNew} new` : '') + (nUpd ? `\n• ${nUpd} already submitted – their old answers will be REPLACED` : '')
+    if(!confirm(`Submit ${list.length} elector(s)?` + (nNew ? `\n• ${nNew} new` : '') + (nUpd ? `\n• ${nUpd} already submitted – their old answers will be REPLACED` : '')
       + (half ? `\n\n${half} incomplete elector(s) (a dropdown not selected) will NOT be submitted.` : ''))) return;
     busy = true; $('save').disabled = true; $('save').textContent = 'Saving…';
     setMsg(`Saving ${list.length} elector(s)…`);
@@ -503,21 +502,16 @@
     return parts.join(' · ') + ` (${new Date().toLocaleTimeString()})`;
   }
 
-  // One click: every elector of this BLO → Not Residing (Form-6 = No), then submit to the sheet
-  async function markAllNotResiding(){
+  // One click: select "Not Residing" (Form-6 = No) for every elector of this BLO. BLO reviews, then taps Submit.
+  function markAllNotResiding(){
     if(!cur || busy || !rows.length) return;
-    if(!hasBackend){ setMsg('Google Sheet link is not set, so data cannot be saved.','err'); return; }
-    const already = rows.filter(r => ans[r[1]][0]==='Not Residing' && saved[r[1]] && saved[r[1]][0]==='Not Residing').length;
-    const res = rows.filter(r => (saved[r[1]] && saved[r[1]][0]==='Residing') || ans[r[1]][0]==='Residing').length;
-    const change = rows.length - already;
-    if(!change){ setMsg('All electors of this part are already saved as Not Residing.','ok'); return; }
-    if(!confirm(`Mark ALL ${rows.length} electors of PS-${cur.ps} (${cur.blo}) as "Not Residing" with Form-6 = "No" and submit now?`
-      + (res ? `\n\n⚠ ${res} elector(s) currently marked "Residing" will be changed to Not Residing.` : '')
-      + (already ? `\n\n${already} are already saved as Not Residing (no change).` : ''))) return;
+    const res = rows.filter(r => ans[r[1]][0]==='Residing').length;
+    if(res && !confirm(`${res} elector(s) are currently marked "Residing". Change them to "Not Residing" too?`)) return;
     for(const r of rows){ const ep = r[1]; ans[ep] = ['Not Residing', 'No', '']; if(isChanged(ep)) dirty.add(ep); else dirty.delete(ep); }
     $('q').value = ''; $('fStatus').value = ''; $('fShow').value = '';
     saveDraft(); render(); updateStats();
-    await submit(true);
+    if(dirty.size) setMsg(`All ${rows.length} electors selected as Not Residing (Form-6: No). Review, then tap Submit to save.`,'warn');
+    else setMsg('All electors are already saved as Not Residing.','ok');
   }
   $('markAllNR').addEventListener('click', markAllNotResiding);
 
