@@ -60,6 +60,11 @@
   .markall{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .markall .note{font-size:13px;color:var(--muted);flex:1 1 240px}
   .btn.danger{background:#b03a2e}
+  .btn.lockbtn{background:#5b2c83}
+  .btn.lockbtn:disabled{background:#9aa5b4}
+  .frozenbar{background:#f3ecfa;border-color:#b79bd6;color:#3d1c5c;font-weight:600}
+  .frozenbar .sub{font-weight:400;font-size:13px;margin-top:2px}
+  .psfrozen td select{background:#eef1f4!important;color:#4a5260;border-color:#c3cad3;cursor:not-allowed}
   #msg{font-weight:600}
   #msg.ok{color:var(--done-ink)} #msg.err{color:var(--err)} #msg.warn{color:#9a6400}
   .banner{background:#fff4d6;border:1px solid #e8c56a;color:#6b4e00;padding:10px 14px;border-radius:8px;margin-bottom:14px;display:none}
@@ -146,6 +151,8 @@
       <div class="stat"><div class="k">Residing</div><div class="v" id="sRes">0</div></div>
       <div class="stat"><div class="k">Form-6 obtained</div><div class="v" id="sF6">0</div></div>
     </div>
+
+    <div class="panel frozenbar hide" id="frozenBar"></div>
 
     <div class="panel markall">
       <span class="note">If none of your electors are residing, select them all at once. Form-6 is set to "No" automatically. Check the list, then tap Submit.</span>
@@ -252,6 +259,7 @@
   <span style="display:flex;gap:10px;align-items:center">
     <button class="btn ghost" id="reload" type="button">Reload from sheet</button>
     <button class="btn" id="save" type="button" disabled>Submit</button>
+    <button class="btn lockbtn" id="freeze" type="button" disabled title="Lock your entries for good – no changes possible afterwards">🔒 Freeze</button>
   </span>
 </div></div>
 
@@ -331,10 +339,12 @@
       if(cur.ps !== Number(ps)) return;
       rows = data;
       saved = (sv && sv.ok && sv.data) ? sv.data : {};
+      psFrozen = (sv && sv.ok && sv.frozen) ? sv.frozen : null;
       ans = {}; dirty = new Set(); errEp = new Set();
       for(const r of rows){ const s = saved[r[1]]; ans[r[1]] = s ? [s[0]||'', s[1]||'', s[2]||''] : ['','','']; }
       // restore unsaved draft from this device
-      const draft = store.get('asdd_draft_'+ps) || {};
+      if(psFrozen){ store.del('asdd_draft_'+ps); store.del('asdd_unconfirmed_'+ps); }
+      const draft = psFrozen ? {} : (store.get('asdd_draft_'+ps) || {});
       for(const ep in draft){ if(ans[ep] && !isLocked(ep)){ ans[ep] = [draft[ep][0]||'', draft[ep][1]||'', draft[ep][2]||'']; if(ans[ep][0]==='Not Residing') ans[ep][1]='No'; if(isChanged(ep)) dirty.add(ep); } }
       const unconf = store.get('asdd_unconfirmed_'+ps);
       if(unconf && sv && sv.ok){
@@ -345,18 +355,28 @@
         return;
       }
       render(); updateStats();
-      if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
+      if(psFrozen) flagLocked();
+      else if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
       else setMsg(Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Fill both dropdowns for each elector, then tap Submit.');
     }catch(e){ setMsg('Failed to load list: '+e.message,'err'); }
     finally{ $('loader').classList.add('hide'); }
   }
 
-  // Submitted entries can now be edited by the BLO; re-submitting overwrites the row in the sheet.
+  // Submitted entries can be edited by the BLO (re-submitting overwrites the row in the sheet)
+  // until the BLO taps Freeze. After freezing, nothing on this PS can be changed.
+  let psFrozen = null;                       // null, or {at, by} when this PS is frozen
   const isSubmitted = ep => !!(saved[ep] && saved[ep][0] && saved[ep][1]);
-  const isLocked = () => false;
+  const isLocked = () => !!psFrozen;
   const LOCK_OK = '✓ Submitted', LOCK_EDIT = '✎ Edited – tap Submit to update', LOCK_ERR = 'Not updated – tap Reload';
-  function flagLocked(){}
+  function flagLocked(){ setMsg(`🔒 Entries are frozen${psFrozen && psFrozen.at ? ' (since ' + psFrozen.at + ')' : ''} – they cannot be changed.`,'err'); }
+  function showFrozen(){
+    const fb = $('frozenBar');
+    fb.classList.toggle('hide', !psFrozen);
+    if(psFrozen) fb.innerHTML = `🔒 Entries of PS-${cur.ps} are FROZEN${psFrozen.at ? ' on ' + esc(psFrozen.at) : ''}.`
+      + `<div class="sub">No further changes can be made. Contact the ERO office if a correction is needed.</div>`;
+    $('freeze').textContent = psFrozen ? '🔒 Frozen' : '🔒 Freeze';
+  }
   function isChanged(ep){ const s = saved[ep] || ['','','']; const a = ans[ep]; return (a[0]||'')!==(s[0]||'') || (a[1]||'')!==(s[1]||''); }
 
   function render(){
@@ -382,6 +402,9 @@
       </tr>`;
     }
     $('tb').innerHTML = html;
+    $('tb').closest('table').classList.toggle('psfrozen', !!psFrozen);
+    if(psFrozen) $('tb').querySelectorAll('select,input').forEach(el => el.disabled = true);
+    showFrozen();
     $('none').classList.toggle('hide', n>0);
     $('shown').textContent = `Showing ${n} of ${rows.length}`;
   }
@@ -392,9 +415,11 @@
     $('sTotal').textContent = rows.length; $('sDone').textContent = done; $('sPend').textContent = rows.length-done;
     $('sRes').textContent = res; $('sF6').textContent = f6;
     $('sBar').style.width = (rows.length ? done/rows.length*100 : 0)+'%';
-    $('save').disabled = busy || !dirty.size || !hasBackend;
-    $('markAllNR').disabled = busy || !rows.length;
-    if(!busy && dirty.size) setMsg(`${dirty.size} unsaved change(s). Tap Submit to save to Google Sheet.`,'warn');
+    $('save').disabled = busy || !dirty.size || !hasBackend || !!psFrozen;
+    $('markAllNR').disabled = busy || !rows.length || !!psFrozen;
+    $('freeze').disabled = busy || !!dirty.size || !hasBackend || !rows.length || !!psFrozen;
+    $('freeze').title = psFrozen ? 'Already frozen' : dirty.size ? 'Submit your changes first, then Freeze' : 'Lock your entries for good – no changes possible afterwards';
+    if(!busy && dirty.size && !psFrozen) setMsg(`${dirty.size} unsaved change(s). Tap Submit to save to Google Sheet.`,'warn');
   }
 
   function saveDraft(){
@@ -405,7 +430,7 @@
   $('tb').addEventListener('change', e => {
     const sel = e.target; if(sel.tagName!=='SELECT') return;
     const tr = sel.closest('tr'), ep = tr.dataset.ep, k = +sel.dataset.k;
-    if(isLocked(ep)){ flagLocked(tr); return; }
+    if(isLocked(ep)){ sel.value = ans[ep][k] || ''; flagLocked(tr); return; }
     ans[ep][k] = sel.value;
     sel.classList.toggle('empty', !sel.value);
     if(k===0){
@@ -435,6 +460,7 @@
   ['mousedown','touchstart','keydown'].forEach(ev => $('tb').addEventListener(ev, blockLocked, {passive:false}));
 
   async function submit(){
+    if(psFrozen){ flagLocked(); return; }
     if(!dirty.size || busy) return;
     const pend = rows.filter(r => dirty.has(r[1]) && !isLocked(r[1]));
     const list = pend.filter(r => isComplete(ans[r[1]]));
@@ -453,6 +479,12 @@
       out = await backend(JSON.stringify(payload), n => setMsg(`Server busy, retrying (${n})… please keep this page open.`,'warn'));
     }catch(e){ out = null; }
 
+    if(out && out.frozen){                     // frozen (e.g. from another phone) – nothing was saved
+      psFrozen = out.frozenInfo || { at: '' }; dirty.clear(); store.del('asdd_draft_'+cur.ps); store.del('asdd_unconfirmed_'+cur.ps);
+      busy = false; $('save').textContent = 'Submit'; render(); updateStats();
+      setMsg('✗ NOT saved – entries of this PS are already FROZEN. No changes can be made.','err');
+      return;
+    }
     // Decide, per elector, what is REALLY in the Google Sheet.
     let truth = null;           // epic -> [residing, form6] as stored in the sheet
     if(out && out.ok){
@@ -504,6 +536,7 @@
 
   // One click: select "Not Residing" (Form-6 = No) for every elector of this BLO. BLO reviews, then taps Submit.
   function markAllNotResiding(){
+    if(psFrozen){ flagLocked(); return; }
     if(!cur || busy || !rows.length) return;
     const res = rows.filter(r => ans[r[1]][0]==='Residing').length;
     if(res && !confirm(`${res} elector(s) are currently marked "Residing". Change them to "Not Residing" too?`)) return;
@@ -514,6 +547,34 @@
     else setMsg('All electors are already saved as Not Residing.','ok');
   }
   $('markAllNR').addEventListener('click', markAllNotResiding);
+
+  // Freeze: BLO locks all entries of this PS for good. Separate from Submit.
+  async function freezePS(){
+    if(!cur || busy || psFrozen) return;
+    if(dirty.size){ setMsg('You have unsaved changes – tap Submit first, then Freeze.','err'); return; }
+    const notDone = rows.filter(r => !isSubmitted(r[1])).length;
+    if(!confirm(`FREEZE all entries of PS-${cur.ps} (${cur.blo})?\n\nAfter freezing you can NOT change any entry again.`
+      + (notDone ? `\n\n⚠ ${notDone} of ${rows.length} elector(s) are still NOT submitted. They will stay empty for good.` : `\n\nAll ${rows.length} electors are submitted.`))) return;
+    if(notDone && !confirm(`Are you sure? ${notDone} elector(s) are still empty and can never be filled after freezing.`)) return;
+    busy = true; updateStats(); $('freeze').textContent = 'Freezing…'; setMsg('Freezing your entries…');
+    let out = null;
+    try{ out = await backend(JSON.stringify({ action:'freeze', ps: cur.ps, blo: cur.blo }), n => setMsg(`Server busy, retrying (${n})…`,'warn')); }
+    catch(e){ out = null; }
+    if(!out || !out.ok){                       // not sure – ask the sheet
+      const sv = await backendGet(`${URL_}?action=get&ps=${cur.ps}`).catch(() => null);
+      if(sv && sv.ok && sv.frozen) out = { ok:true, frozen: sv.frozen };
+    }
+    busy = false;
+    if(out && out.ok && out.frozen){
+      psFrozen = out.frozen; store.del('asdd_draft_'+cur.ps);
+      render(); updateStats();
+      setMsg(`🔒 Entries FROZEN${psFrozen.at ? ' on ' + psFrozen.at : ''}. No further changes are possible.`,'ok');
+    }else{
+      updateStats(); showFrozen();
+      setMsg('✗ Could not freeze – ' + ((out && out.error) || 'no internet / Google not reachable') + '. Please try again.','err');
+    }
+  }
+  $('freeze').addEventListener('click', freezePS);
 
   $('bloSel').addEventListener('change', loadPS);
   $('save').addEventListener('click', submit);
@@ -587,7 +648,7 @@
       $('admMsg').textContent = 'Updated ' + new Date().toLocaleTimeString();
     }catch(e){ $('admMsg').textContent = 'Could not read Google Sheet: ' + e.message; }
     admList = blos.map(b => { const s = sum[b.ps] || {}, done = s.done||0;
-      return {...b, done, pct: b.n ? done/b.n*100 : 0, residing:s.residing||0, notResiding:s.notResiding||0, f6yes:s.f6yes||0, f6no:s.f6no||0}; });
+      return {...b, done, pct: b.n ? done/b.n*100 : 0, residing:s.residing||0, notResiding:s.notResiding||0, f6yes:s.f6yes||0, f6no:s.f6no||0, frozen:!!s.frozen}; });
     const scope = inScope(admList);
     const T = k => scope.reduce((a,b) => a + b[k], 0), tot = T('n'), dn = T('done'), pct = tot ? dn/tot*100 : 0;
     $('ovLbl').textContent = `${viewer ? viewer.name.split(',')[0] + ' – ' : ''}overall progress · ${dn.toLocaleString('en-IN')} of ${tot.toLocaleString('en-IN')} electors done · ${scope.length} BLOs`;
@@ -605,7 +666,7 @@
     const list = inScope(admList).filter(b => (!q || String(b.ps)===q || b.blo.toUpperCase().includes(q) || b.part.toUpperCase().includes(q))
       && (!f || (f==='zero' && !b.done) || (f==='part' && b.done && b.done<b.n) || (f==='full' && b.done>=b.n)))
       .sort((a,b) => { const x=a[admSort], y=b[admSort]; return (x>y?1:x<y?-1:0) * (admAsc?1:-1); });
-    $('admTb').innerHTML = list.map(b => `<tr class="${b.done?'':'zero'}"><td><a href="#" class="pslink" data-ps="${b.ps}" title="Open PS-${b.ps} entries">${b.ps}</a></td><td class="l">${esc(b.blo)}</td><td class="l">${esc(b.part)}</td>
+    $('admTb').innerHTML = list.map(b => `<tr class="${b.done?'':'zero'}"><td><a href="#" class="pslink" data-ps="${b.ps}" title="Open PS-${b.ps} entries">${b.ps}</a></td><td class="l">${esc(b.blo)}${b.frozen ? ' <span title="Entries frozen by BLO">🔒</span>' : ''}</td><td class="l">${esc(b.part)}</td>
       <td>${b.n}</td><td>${b.done}</td><td><span class="pbar"><i style="width:${b.pct}%"></i></span>${b.pct.toFixed(0)}%</td>
       <td>${b.residing}</td><td>${b.notResiding}</td><td>${b.f6yes}</td><td>${b.f6no}</td></tr>`).join('');
   }
