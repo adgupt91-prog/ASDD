@@ -785,9 +785,6 @@
   $('dailyBtn').addEventListener('click', async () => {
     const btn = $('dailyBtn'), old = btn.textContent;
     if(!hasBackend){ alert('Google Sheet link not set in config.js.'); return; }
-    const ermsIn = prompt('How many entries are done in ERMS today?', '');
-    if(ermsIn === null) return;                                    // Cancel → no report
-    const erms = ermsIn.trim();
     btn.disabled = true; btn.textContent = 'Preparing…';
     try{
       const [sv, sign] = await Promise.all([
@@ -830,10 +827,6 @@
       // ERO signature with "SDM/ERO, AC-24 PATEL NAGAR" (as in the original report)
       const y = doc.lastAutoTable.finalY + 32;
       doc.addImage(sign, 'JPEG', 598, y, 150, 116);
-
-      // Note at the bottom: ERMS entries (value asked when the button is clicked)
-      doc.setFont('helvetica','bold'); doc.setFontSize(11);
-      doc.text(`NOTE: ${erms || '______'} entries done in ERMS, server is running slow.`, 52, y + 62);   // level with middle of ERO sign
 
       doc.save(`ASDD_report_AC24_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.pdf`);
     }catch(e){
