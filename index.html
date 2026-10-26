@@ -417,8 +417,12 @@
     $('sBar').style.width = (rows.length ? done/rows.length*100 : 0)+'%';
     $('save').disabled = busy || !dirty.size || !hasBackend || !!psFrozen;
     $('markAllNR').disabled = busy || !rows.length || !!psFrozen;
-    $('freeze').disabled = busy || !!dirty.size || !hasBackend || !rows.length || !!psFrozen;
-    $('freeze').title = psFrozen ? 'Already frozen' : dirty.size ? 'Submit your changes first, then Freeze' : 'Lock your entries for good – no changes possible afterwards';
+    const notSubmitted = rows.filter(r => !isSubmitted(r[1])).length;
+    $('freeze').disabled = busy || !!dirty.size || !hasBackend || !rows.length || notSubmitted > 0 || !!psFrozen;
+    $('freeze').title = psFrozen ? 'Already frozen'
+      : notSubmitted ? `Freeze unlocks after ALL electors are submitted (${notSubmitted} still not submitted)`
+      : dirty.size ? 'Submit your changes first, then Freeze'
+      : 'Lock your entries for good – no changes possible afterwards';
     if(!busy && dirty.size && !psFrozen) setMsg(`${dirty.size} unsaved change(s). Tap Submit to save to Google Sheet.`,'warn');
   }
 
@@ -553,9 +557,8 @@
     if(!cur || busy || psFrozen) return;
     if(dirty.size){ setMsg('You have unsaved changes – tap Submit first, then Freeze.','err'); return; }
     const notDone = rows.filter(r => !isSubmitted(r[1])).length;
-    if(!confirm(`FREEZE all entries of PS-${cur.ps} (${cur.blo})?\n\nAfter freezing you can NOT change any entry again.`
-      + (notDone ? `\n\n⚠ ${notDone} of ${rows.length} elector(s) are still NOT submitted. They will stay empty for good.` : `\n\nAll ${rows.length} electors are submitted.`))) return;
-    if(notDone && !confirm(`Are you sure? ${notDone} elector(s) are still empty and can never be filled after freezing.`)) return;
+    if(notDone){ setMsg(`Freeze is available only after ALL electors are submitted – ${notDone} still not submitted.`,'err'); return; }
+    if(!confirm(`FREEZE all entries of PS-${cur.ps} (${cur.blo})?\n\nAll ${rows.length} electors are submitted.\nAfter freezing you can NOT change any entry again.`)) return;
     busy = true; updateStats(); $('freeze').textContent = 'Freezing…'; setMsg('Freezing your entries…');
     let out = null;
     try{ out = await backend(JSON.stringify({ action:'freeze', ps: cur.ps, blo: cur.blo }), n => setMsg(`Server busy, retrying (${n})…`,'warn')); }
