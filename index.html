@@ -660,7 +660,7 @@
   function drawAdmin(){
     const list = admFiltered();
     $('admTb').innerHTML = list.map(b => `<tr class="${b.done?'':'zero'}"><td><a href="#" class="pslink" data-ps="${b.ps}" title="Open PS-${b.ps} entries">${b.ps}</a></td><td class="l">${esc(b.blo)}${b.frozen ? ' <span title="Entries frozen by BLO">🔒</span>' : ''}</td><td class="l">${esc(b.part)}</td>
-      <td>${b.n}</td><td>${b.done}</td><td><span class="pbar"><i style="width:${b.pct}%"></i></span>${b.pct.toFixed(0)}%</td>
+      <td>${b.n}</td><td>${b.done}</td><td><span class="pbar"><i style="width:${b.pct}%"></i></span>${Math.floor(b.pct)}%</td>
       <td>${b.residing}</td><td>${b.notResiding}</td><td>${b.f6yes}</td><td>${b.f6no}</td></tr>`).join('');
   }
   document.querySelectorAll('#admTable th').forEach(th => th.addEventListener('click', () => {
@@ -706,7 +706,7 @@
           doc.setFillColor(227,232,238); doc.roundedRect(x, y, bw, bh, 3, 3, 'F');
           if(p > 0){ doc.setFillColor(30,122,67); doc.roundedRect(x, y, Math.max(bw * p/100, 3), bh, 3, 3, 'F'); }
           doc.setFontSize(8); doc.setFont('helvetica', c.section === 'foot' ? 'bold' : 'normal'); doc.setTextColor(0);
-          doc.text((c.section === 'foot' ? p.toFixed(1) : p.toFixed(0)) + '%', c.cell.x + c.cell.width - 5, c.cell.y + c.cell.height/2 + 3, { align:'right' });
+          doc.text((c.section === 'foot' ? (Math.floor(p*10)/10).toFixed(1) : Math.floor(p)) + '%', c.cell.x + c.cell.width - 5, c.cell.y + c.cell.height/2 + 3, { align:'right' });
         },
         didDrawPage: () => { doc.setFontSize(8); doc.setTextColor(120);
           doc.text('Page ' + doc.internal.getNumberOfPages(), W - 24, H - 14, { align:'right' }); doc.setTextColor(0); }
