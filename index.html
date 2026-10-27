@@ -201,6 +201,13 @@
     <div class="panel filters">
       <input type="search" id="admQ" placeholder="Search PS no., BLO or part name">
       <select id="admF"><option value="">All BLOs</option><option value="zero">Not started</option><option value="part">In progress</option><option value="full">Completed 100%</option></select>
+      <select id="admSortSel" title="Sort order (also used in the PDF)">
+        <option value="ps|1">Sort: PS No.</option>
+        <option value="pct|1">Sort: Progress % – lowest first</option>
+        <option value="pct|0">Sort: Progress % – highest first</option>
+        <option value="done|1">Sort: Completed – lowest first</option>
+        <option value="n|0">Sort: ASDD total – highest first</option>
+      </select>
       <button class="btn" id="admPdf" type="button" style="background:#b03a2e;padding:8px 16px;font-size:14px">Download PDF</button>
       <span class="meta" id="admMsg" style="margin:0"></span>
     </div>
@@ -603,7 +610,7 @@
     $('savebar').style.display = (!on && cur) ? 'block' : 'none';
     $('adminBtn').classList.toggle('hide', on); $('aeroBtn').classList.toggle('hide', on);
     $('admTitle').textContent = viewer ? `${viewer.name} · PS ${viewer.from}–${viewer.to}` : 'Admin · BLO-wise progress';
-    $('admQ').value = ''; $('admF').value = '';
+    $('admQ').value = ''; $('admF').value = ''; admSort = 'ps'; admAsc = true; $('admSortSel').value = 'ps|1';
     if(on) loadAdmin();
     window.scrollTo(0,0);
   }
@@ -658,7 +665,13 @@
       <td>${b.residing}</td><td>${b.notResiding}</td><td>${b.f6yes}</td><td>${b.f6no}</td></tr>`).join('');
   }
   document.querySelectorAll('#admTable th').forEach(th => th.addEventListener('click', () => {
-    const k = th.dataset.s; admAsc = admSort===k ? !admAsc : true; admSort = k; drawAdmin(); }));
+    const k = th.dataset.s; admAsc = admSort===k ? !admAsc : true; admSort = k; syncSortSel(); drawAdmin(); }));
+  function syncSortSel(){ const v = admSort + '|' + (admAsc ? 1 : 0), sel = $('admSortSel');
+    if(![...sel.options].some(o => o.value === v)) sel.insertAdjacentHTML('beforeend', `<option value="${v}" data-extra="1">Sort: ${admSort} (${admAsc ? 'ascending' : 'descending'})</option>`);
+    [...sel.options].forEach(o => { if(o.dataset.extra && o.value !== v) o.remove(); }); sel.value = v; }
+  $('admSortSel').addEventListener('change', () => { const [k, a] = $('admSortSel').value.split('|'); admSort = k; admAsc = a === '1'; drawAdmin(); });
+  // choosing "In progress" defaults to lowest progress first
+  $('admF').addEventListener('change', () => { if($('admF').value === 'part'){ admSort = 'pct'; admAsc = true; syncSortSel(); } });
   $('admQ').addEventListener('input', drawAdmin);
   // PDF of the BLO list exactly as currently filtered (Not started / In progress / Completed / All)
   $('admPdf').addEventListener('click', async () => {
@@ -677,7 +690,7 @@
       doc.setFont('helvetica','bold');
       doc.text(`BLOs: ${fTxt}${q ? ' · search "' + q + '"' : ''}  –  ${list.length} BLO(s)   |   ASDD electors: ${tot}   Completed: ${dn} (${tot ? (dn/tot*100).toFixed(1) : 0}%)   Pending: ${tot - dn}`, W/2, 70, { align:'center' });
       doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(90);
-      doc.text('Generated: ' + new Date().toLocaleString('en-IN'), W/2, 83, { align:'center' }); doc.setTextColor(0);
+      doc.text('Sorted by: ' + $('admSortSel').selectedOptions[0].text.replace(/^Sort:\s*/, '') + '   |   Generated: ' + new Date().toLocaleString('en-IN'), W/2, 83, { align:'center' }); doc.setTextColor(0);
       doc.autoTable({
         startY: 92, margin: { left: 24, right: 24, bottom: 30 },
         head: [['S.N.','PS No','BLO Name','Part Name','ASDD Total','Completed','Pending','Progress','Residing','Not Residing','Form-6 Yes','Form-6 No']],
