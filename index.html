@@ -690,14 +690,24 @@
       doc.autoTable({
         startY: 92, margin: { left: 24, right: 24, bottom: 30 },
         head: [['S.N.','PS No','BLO Name','Part Name','ASDD Total','Completed','Pending','Progress','Residing','Not Residing','Form-6 Yes','Form-6 No']],
-        body: list.length ? list.map((b,i) => [i+1, b.ps, b.blo + (b.frozen ? ' (Frozen)' : ''), b.part, b.n, b.done, b.n - b.done, b.pct.toFixed(0) + '%', b.residing, b.notResiding, b.f6yes, b.f6no])
+        body: list.length ? list.map((b,i) => [i+1, b.ps, b.blo + (b.frozen ? ' (Frozen)' : ''), b.part, b.n, b.done, b.n - b.done, b.pct, b.residing, b.notResiding, b.f6yes, b.f6no])
                           : [['', '', 'No BLOs in this filter', '', '', '', '', '', '', '', '', '']],
-        foot: list.length ? [['', '', 'TOTAL', '', tot, dn, tot - dn, (tot ? (dn/tot*100).toFixed(1) : 0) + '%', T('residing'), T('notResiding'), T('f6yes'), T('f6no')]] : undefined,
+        foot: list.length ? [['', '', 'TOTAL', '', tot, dn, tot - dn, tot ? dn/tot*100 : 0, T('residing'), T('notResiding'), T('f6yes'), T('f6no')]] : undefined,
         styles: { fontSize: 8, cellPadding: 3, valign: 'middle', halign: 'center', lineColor: [213,219,227], lineWidth: 0.4 },
         headStyles: { fillColor: [26,95,85], textColor: 255, fontStyle: 'bold' },
         footStyles: { fillColor: [230,237,241], textColor: 0, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [242,246,248] },
-        columnStyles: { 0:{cellWidth:30}, 1:{cellWidth:40}, 2:{halign:'left'}, 3:{halign:'left'} },
+        columnStyles: { 0:{cellWidth:30}, 1:{cellWidth:40}, 2:{halign:'left'}, 3:{halign:'left'}, 7:{cellWidth:100} },
+        // Progress column: green bar + % instead of plain text
+        didParseCell: c => { if(c.column.index === 7 && c.section !== 'head' && typeof c.cell.raw === 'number') c.cell.text = ['']; },
+        didDrawCell: c => {
+          if(c.column.index !== 7 || c.section === 'head' || typeof c.cell.raw !== 'number') return;
+          const p = Math.max(0, Math.min(100, c.cell.raw)), x = c.cell.x + 5, bw = c.cell.width - 42, bh = 6, y = c.cell.y + c.cell.height/2 - bh/2;
+          doc.setFillColor(227,232,238); doc.roundedRect(x, y, bw, bh, 3, 3, 'F');
+          if(p > 0){ doc.setFillColor(30,122,67); doc.roundedRect(x, y, Math.max(bw * p/100, 3), bh, 3, 3, 'F'); }
+          doc.setFontSize(8); doc.setFont('helvetica', c.section === 'foot' ? 'bold' : 'normal'); doc.setTextColor(0);
+          doc.text((c.section === 'foot' ? p.toFixed(1) : p.toFixed(0)) + '%', c.cell.x + c.cell.width - 5, c.cell.y + c.cell.height/2 + 3, { align:'right' });
+        },
         didDrawPage: () => { doc.setFontSize(8); doc.setTextColor(120);
           doc.text('Page ' + doc.internal.getNumberOfPages(), W - 24, H - 14, { align:'right' }); doc.setTextColor(0); }
       });
