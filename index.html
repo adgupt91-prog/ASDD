@@ -201,6 +201,7 @@
     <div class="panel filters">
       <input type="search" id="admQ" placeholder="Search PS no., BLO or part name">
       <select id="admF"><option value="">All BLOs</option><option value="zero">Not started</option><option value="part">In progress</option><option value="full">Completed 100%</option></select>
+      <button class="btn" id="admPdf" type="button" style="background:#b03a2e;padding:8px 16px;font-size:14px">Download PDF</button>
       <span class="meta" id="admMsg" style="margin:0"></span>
     </div>
     <div class="tablewrap"><table id="admTable">
@@ -246,13 +247,6 @@
   <div class="row"><button class="btn ghost" type="button" id="acancel">Cancel</button><button class="btn" type="submit">Open</button></div>
 </form></div>
 
-<div class="modal hide" id="loginModal"><form class="box" id="loginForm" autocomplete="off">
-  <h3>Admin login</h3>
-  <input id="lu" placeholder="Username" autocapitalize="off">
-  <input id="lp" type="password" placeholder="Password">
-  <div class="err" id="lerr"></div>
-  <div class="row"><button class="btn ghost" type="button" id="lcancel">Cancel</button><button class="btn" type="submit">Login</button></div>
-</form></div>
 
 <div class="savebar" id="savebar"><div class="in">
   <span id="msg">No unsaved changes.</span>
@@ -589,7 +583,6 @@
   $('fStatus').addEventListener('change', render); $('fShow').addEventListener('change', render);
   window.addEventListener('beforeunload', e => { if(dirty.size){ e.preventDefault(); e.returnValue=''; } });
   /* ---------- Admin ---------- */
-  const ADMIN_USER = 'admin', ADMIN_PASS = '2424';
   // ERO / AEROs and their booths (from District Daily Report, AC-24 Patel Nagar, 22-Oct-2026)
   const AEROS = [
     ['Dr. Sabya Sachin, Addl. AERO', 1, 15], ['Ms. Vandana Sharma, Addl. AERO', 16, 30], ['Sh. Hansraj Meena, Addl. AERO', 31, 45],
@@ -625,20 +618,8 @@
     if(!a){ $('aerr').textContent = 'Please select your name.'; return; }
     ss.set('asdd_aero', a.id); viewer = a; $('aeroModal').classList.add('hide'); closePS(); showAdmin(true);
   });
-  $('adminBtn').addEventListener('click', () => {
-    viewer = null;
-    if(ss.get('asdd_admin')==='1') return showAdmin(true);
-    $('lu').value=''; $('lp').value=''; $('lerr').textContent='';
-    $('loginModal').classList.remove('hide'); $('lu').focus();
-  });
-  $('lcancel').addEventListener('click', () => $('loginModal').classList.add('hide'));
-  $('loginForm').addEventListener('submit', e => {
-    e.preventDefault();
-    if($('lu').value.trim().toLowerCase()===ADMIN_USER && $('lp').value===ADMIN_PASS){
-      ss.set('asdd_admin','1'); $('loginModal').classList.add('hide'); showAdmin(true);
-    } else $('lerr').textContent = 'Wrong username or password.';
-  });
-  $('admExit').addEventListener('click', () => { if(viewer) ss.del('asdd_aero'); else ss.del('asdd_admin'); viewer = null; closePS(); showAdmin(false); });
+  $('adminBtn').addEventListener('click', () => { viewer = null; closePS(); showAdmin(true); });
+  $('admExit').addEventListener('click', () => { if(viewer) ss.del('asdd_aero'); viewer = null; closePS(); showAdmin(false); });
   $('admRefresh').addEventListener('click', () => psCur ? openPS(psCur.ps) : loadAdmin());
 
   async function loadAdmin(){
@@ -664,18 +645,58 @@
     drawAdmin();
   }
   const inScope = list => viewer ? list.filter(b => b.ps >= viewer.from && b.ps <= viewer.to) : list;
-  function drawAdmin(){
+  function admFiltered(){
     const q = $('admQ').value.trim().toUpperCase(), f = $('admF').value;
-    const list = inScope(admList).filter(b => (!q || String(b.ps)===q || b.blo.toUpperCase().includes(q) || b.part.toUpperCase().includes(q))
+    return inScope(admList).filter(b => (!q || String(b.ps)===q || b.blo.toUpperCase().includes(q) || b.part.toUpperCase().includes(q))
       && (!f || (f==='zero' && !b.done) || (f==='part' && b.done && b.done<b.n) || (f==='full' && b.done>=b.n)))
       .sort((a,b) => { const x=a[admSort], y=b[admSort]; return (x>y?1:x<y?-1:0) * (admAsc?1:-1); });
+  }
+  function drawAdmin(){
+    const list = admFiltered();
     $('admTb').innerHTML = list.map(b => `<tr class="${b.done?'':'zero'}"><td><a href="#" class="pslink" data-ps="${b.ps}" title="Open PS-${b.ps} entries">${b.ps}</a></td><td class="l">${esc(b.blo)}${b.frozen ? ' <span title="Entries frozen by BLO">🔒</span>' : ''}</td><td class="l">${esc(b.part)}</td>
       <td>${b.n}</td><td>${b.done}</td><td><span class="pbar"><i style="width:${b.pct}%"></i></span>${b.pct.toFixed(0)}%</td>
       <td>${b.residing}</td><td>${b.notResiding}</td><td>${b.f6yes}</td><td>${b.f6no}</td></tr>`).join('');
   }
   document.querySelectorAll('#admTable th').forEach(th => th.addEventListener('click', () => {
     const k = th.dataset.s; admAsc = admSort===k ? !admAsc : true; admSort = k; drawAdmin(); }));
-  $('admQ').addEventListener('input', drawAdmin); $('admF').addEventListener('change', drawAdmin);
+  $('admQ').addEventListener('input', drawAdmin);
+  // PDF of the BLO list exactly as currently filtered (Not started / In progress / Completed / All)
+  $('admPdf').addEventListener('click', async () => {
+    const btn = $('admPdf'), old = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Preparing…';
+    try{
+      await loadLibs('pdf');
+      const list = admFiltered(), fTxt = $('admF').selectedOptions[0].text, q = $('admQ').value.trim();
+      const T = k => list.reduce((a,b) => a + b[k], 0), tot = T('n'), dn = T('done');
+      const doc = new window.jspdf.jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+      const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+      doc.setFont('helvetica','bold'); doc.setFontSize(15);
+      doc.text('Status of Re-verification of ASDD Electors – BLO-wise', W/2, 36, { align:'center' });
+      doc.setFont('helvetica','normal'); doc.setFontSize(10);
+      doc.text(`District: CENTRAL   |   AC: 24 - PATEL NAGAR${viewer ? '   |   ' + viewer.name + ' (PS ' + viewer.from + '–' + viewer.to + ')' : ''}`, W/2, 54, { align:'center' });
+      doc.setFont('helvetica','bold');
+      doc.text(`BLOs: ${fTxt}${q ? ' · search "' + q + '"' : ''}  –  ${list.length} BLO(s)   |   ASDD electors: ${tot}   Completed: ${dn} (${tot ? (dn/tot*100).toFixed(1) : 0}%)   Pending: ${tot - dn}`, W/2, 70, { align:'center' });
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(90);
+      doc.text('Generated: ' + new Date().toLocaleString('en-IN'), W/2, 83, { align:'center' }); doc.setTextColor(0);
+      doc.autoTable({
+        startY: 92, margin: { left: 24, right: 24, bottom: 30 },
+        head: [['S.N.','PS No','BLO Name','Part Name','ASDD Total','Completed','Pending','Progress','Residing','Not Residing','Form-6 Yes','Form-6 No']],
+        body: list.length ? list.map((b,i) => [i+1, b.ps, b.blo + (b.frozen ? ' (Frozen)' : ''), b.part, b.n, b.done, b.n - b.done, b.pct.toFixed(0) + '%', b.residing, b.notResiding, b.f6yes, b.f6no])
+                          : [['', '', 'No BLOs in this filter', '', '', '', '', '', '', '', '', '']],
+        foot: list.length ? [['', '', 'TOTAL', '', tot, dn, tot - dn, (tot ? (dn/tot*100).toFixed(1) : 0) + '%', T('residing'), T('notResiding'), T('f6yes'), T('f6no')]] : undefined,
+        styles: { fontSize: 8, cellPadding: 3, valign: 'middle', halign: 'center', lineColor: [213,219,227], lineWidth: 0.4 },
+        headStyles: { fillColor: [26,95,85], textColor: 255, fontStyle: 'bold' },
+        footStyles: { fillColor: [230,237,241], textColor: 0, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [242,246,248] },
+        columnStyles: { 0:{cellWidth:30}, 1:{cellWidth:40}, 2:{halign:'left'}, 3:{halign:'left'} },
+        didDrawPage: () => { doc.setFontSize(8); doc.setTextColor(120);
+          doc.text('Page ' + doc.internal.getNumberOfPages(), W - 24, H - 14, { align:'right' }); doc.setTextColor(0); }
+      });
+      const d = new Date(), tag = { '':'All', zero:'Not_started', part:'In_progress', full:'Completed' }[$('admF').value];
+      doc.save(`BLOs_${tag}${viewer ? '_PS' + viewer.from + '-' + viewer.to : ''}_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.pdf`);
+    }catch(e){ alert('Could not make the PDF: ' + e.message); }
+    finally{ btn.disabled = false; btn.textContent = old; }
+  }); $('admF').addEventListener('change', drawAdmin);
 
   /* ---------- Admin: one PS's entries ---------- */
   let psCur = null, psRows = [], psSaved = {};
