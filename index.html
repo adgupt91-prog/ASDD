@@ -43,6 +43,13 @@
   tbody tr.dirty td:first-child{box-shadow:inset 4px 0 0 var(--dirty)}
   td select{min-width:130px;padding:6px 8px}
   td select.empty{border-color:#c4472f;background:#fff7f5}
+  td.c-rem{min-width:260px;text-align:left}
+  td textarea.rem{width:100%;min-width:240px;min-height:64px;font:inherit;font-size:13px;border:1px solid #9aa5b4;border-radius:6px;padding:6px 8px;resize:vertical;background:#fff;color:var(--ink)}
+  td textarea.rem.short{border-color:#c4472f;background:#fff7f5}
+  td textarea.rem:disabled{background:#eef1f4;color:#8a929e;border-color:#c3cad3;cursor:not-allowed;resize:none;min-height:38px}
+  .remcnt{font-size:11px;font-weight:600;margin-top:2px;color:var(--muted)}
+  .remcnt.bad{color:var(--err)} .remcnt.good{color:var(--done-ink)}
+  #psTb td.rem-cell{text-align:left;font-size:12px;min-width:220px;white-space:normal}
   td select.frozen{background:#eef1f4;color:#4a5260;border-color:#c3cad3;cursor:not-allowed;opacity:1}
   tr.locked.dirty .lockmsg{color:#b26a00}
   .lockmsg{font-size:12px;font-weight:600;color:var(--done-ink);margin-top:4px}
@@ -64,6 +71,7 @@
   .btn.lockbtn:disabled{background:#9aa5b4}
   .frozenbar{background:#f3ecfa;border-color:#b79bd6;color:#3d1c5c;font-weight:600}
   .frozenbar .sub{font-weight:400;font-size:13px;margin-top:2px}
+  .psfrozen td textarea.rem{background:#eef1f4!important;cursor:not-allowed}
   .psfrozen td select{background:#eef1f4!important;color:#4a5260;border-color:#c3cad3;cursor:not-allowed}
   #msg{font-weight:600}
   #msg.ok{color:var(--done-ink)} #msg.err{color:var(--err)} #msg.warn{color:#9a6400}
@@ -127,6 +135,8 @@
     #work td.c-rel{grid-column:1/-1}
     #work td.c-sel{grid-column:1/-1;padding-top:6px}
     #work td select{width:100%;font-size:15px;padding:9px}
+    #work td.c-rem{grid-column:1/-1;padding-top:6px;min-width:0}
+    #work td textarea.rem{min-width:0;font-size:15px}
     .lbl-m{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
   }
 </style>
@@ -179,6 +189,7 @@
           <th>Relation Type</th><th>Relation Name</th><th>Part No</th><th>Serial No</th><th>Status of Elector in the ASDD List</th>
           <th>Status of Elector after Re-verification by BLOs (Residing/Not Residing)</th>
           <th>If found to be eligible for Enrolment, Form-6 Obtained or Not</th>
+          <th>Remarks<br><span style="font-weight:400;font-size:11px">(mandatory for Residing, min 100 characters)</span></th>
         </tr></thead>
         <tbody id="tb"></tbody>
       </table>
@@ -235,7 +246,7 @@
       </div>
       <div class="tablewrap"><table id="psTable">
         <thead><tr><th>S.N.</th><th>Name of the Elector</th><th>Epic No.</th><th>Relation Type</th><th>Relation Name</th><th>Serial No</th>
-          <th>Status of Elector in the ASDD List</th><th>Status after Re-verification (Residing/Not Residing)</th><th>Form-6 Obtained or Not</th></tr></thead>
+          <th>Status of Elector in the ASDD List</th><th>Status after Re-verification (Residing/Not Residing)</th><th>Form-6 Obtained or Not</th><th>Remarks</th></tr></thead>
         <tbody id="psTb"></tbody>
       </table>
       <div id="psNone" class="empty-msg hide">No entries to show.</div></div>
@@ -283,8 +294,18 @@
   const f6Opts = a => a[0]==='Not Residing' ? '<option selected>No</option>' : opts(F6, a[1]);
   const f6Attr = a => a[0]==='Not Residing' ? 'class="frozen" disabled title="Not Residing – Form-6 is automatically No"' : `class="${a[1]?'':'empty'}"`;
   const detKind = () => null;
-  const isComplete = a => !!(a[0] && a[1]);
-  const norm = a => [a[0]||'', a[1]||'', ''];      // Ref No / Reason no longer collected
+  // Remarks (3rd value, stored in the sheet's old Ref/Reason slot): disabled for Not Residing,
+  // mandatory for Residing (Form-6 Yes or No) with at least REM_MIN characters.
+  const REM_MIN = 100;
+  const remLen = v => String(v||'').trim().length;
+  const remOk = a => a[0]==='Not Residing' || remLen(a[2]) >= REM_MIN;
+  const isComplete = a => !!(a && a[0] && a[1] && remOk(a));
+  const norm = a => [a[0]||'', a[1]||'', a[0]==='Residing' ? String(a[2]||'').trim() : ''];
+  const remCnt = a => { const n = remLen(a[2]); return a[0]==='Not Residing' ? '' :
+    `<div class="remcnt ${n>=REM_MIN?'good':'bad'}">${n} / ${REM_MIN} characters${n>=REM_MIN?' ✓':' – '+(REM_MIN-n)+' more needed'}</div>`; };
+  const remCell = a => { const nr = a[0]==='Not Residing';
+    return `<textarea class="rem${!nr && remLen(a[2])<REM_MIN?' short':''}" data-k="2" maxlength="1000" ${nr?'disabled title="Not Residing – Remarks not required"':''}
+      placeholder="${nr?'Not required for Not Residing':'Write remarks (minimum '+REM_MIN+' characters)'}">${nr?'':esc(a[2]||'')}</textarea>${remCnt(a)}`; };
   const setMsg = (t, cls) => { const m=$('msg'); m.textContent=t; m.className=cls||''; };
 
   async function getJSON(u){ const r = await fetch(u, {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
@@ -358,7 +379,7 @@
       // restore unsaved draft from this device
       if(psFrozen){ store.del('asdd_draft_'+ps); store.del('asdd_unconfirmed_'+ps); }
       const draft = psFrozen ? {} : (store.get('asdd_draft_'+ps) || {});
-      for(const ep in draft){ if(ans[ep] && !isLocked(ep)){ ans[ep] = [draft[ep][0]||'', draft[ep][1]||'', draft[ep][2]||'']; if(ans[ep][0]==='Not Residing') ans[ep][1]='No'; if(isChanged(ep)) dirty.add(ep); } }
+      for(const ep in draft){ if(ans[ep] && !isLocked(ep)){ ans[ep] = [draft[ep][0]||'', draft[ep][1]||'', draft[ep][2]||'']; if(ans[ep][0]==='Not Residing'){ ans[ep][1]='No'; ans[ep][2]=''; } if(isChanged(ep)) dirty.add(ep); } }
       const unconf = store.get('asdd_unconfirmed_'+ps);
       if(unconf && sv && sv.ok){
         const tr = {}; for(const ep in unconf) tr[ep] = saved[ep] && saved[ep][0] && saved[ep][1] ? saved[ep] : undefined;
@@ -371,7 +392,8 @@
       if(psFrozen) flagLocked();
       else if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
-      else setMsg(Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Fill both dropdowns for each elector, then tap Submit.');
+      else{ const needRem = rows.filter(r => isSubmitted(r[1]) && !savedComplete(r[1])).length;
+        setMsg(needRem ? `${needRem} Residing elector(s) need Remarks (min ${REM_MIN} characters) – fill them and tap Submit.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Fill both dropdowns for each elector (and Remarks for Residing), then tap Submit.', needRem ? 'warn' : ''); }
     }catch(e){ setMsg('Failed to load list: '+e.message,'err'); }
     finally{ $('loader').classList.add('hide'); }
   }
@@ -381,7 +403,8 @@
   let psFrozen = null;                       // null, or {at, by} when this PS is frozen
   const isSubmitted = ep => !!(saved[ep] && saved[ep][0] && saved[ep][1]);
   const isLocked = () => !!psFrozen;
-  const LOCK_OK = '✓ Submitted', LOCK_EDIT = '✎ Edited – tap Submit to update', LOCK_ERR = 'Not updated – tap Reload';
+  const LOCK_OK = '✓ Submitted', LOCK_EDIT = '✎ Edited – tap Submit to update', LOCK_ERR = 'Not updated – tap Reload', LOCK_REM = '⚠ Remarks needed – fill & Submit again';
+  const lockTxt = ep => errEp.has(ep) ? LOCK_ERR : dirty.has(ep) ? LOCK_EDIT : savedComplete(ep) ? LOCK_OK : LOCK_REM;
   function flagLocked(){ setMsg(`🔒 Entries are frozen${psFrozen && psFrozen.at ? ' (since ' + psFrozen.at + ')' : ''} – they cannot be changed.`,'err'); }
   function showFrozen(){
     const fb = $('frozenBar');
@@ -390,7 +413,8 @@
       + `<div class="sub">No further changes can be made. Contact the ERO office if a correction is needed.</div>`;
     $('freeze').textContent = psFrozen ? '🔒 Frozen' : '🔒 Freeze';
   }
-  function isChanged(ep){ const s = saved[ep] || ['','','']; const a = ans[ep]; return (a[0]||'')!==(s[0]||'') || (a[1]||'')!==(s[1]||''); }
+  function isChanged(ep){ const s = norm(saved[ep] || ['','','']), a = norm(ans[ep]); return a[0]!==s[0] || a[1]!==s[1] || a[2]!==s[2]; }
+  const savedComplete = ep => isComplete(saved[ep]);
 
   function render(){
     const q = $('q').value.trim().toUpperCase(), fs = $('fStatus').value, fw = $('fShow').value;
@@ -411,12 +435,13 @@
         <td class="c-part">${esc(op)}</td><td><span class="lbl-m">Serial No</span>${esc(os)}</td>
         <td class="c-rel"><span class="lbl-m">Status in ASDD list</span><span class="tag ${tagCls(st)}">${esc(st)}</span></td>
         <td class="c-sel"><span class="lbl-m">After re-verification</span><select data-k="0" class="${a[0]?'':'empty'}">${opts(RES,a[0])}</select></td>
-        <td class="c-sel"><span class="lbl-m">Form-6 obtained?</span><select data-k="1" ${f6Attr(a)}>${f6Opts(a)}</select>${lk?`<div class="lockmsg">${le?LOCK_ERR:dirty.has(epic)?LOCK_EDIT:LOCK_OK}</div>`:''}</td>
+        <td class="c-sel"><span class="lbl-m">Form-6 obtained?</span><select data-k="1" ${f6Attr(a)}>${f6Opts(a)}</select>${lk?`<div class="lockmsg">${lockTxt(epic)}</div>`:''}</td>
+        <td class="c-rem"><span class="lbl-m">Remarks (min ${REM_MIN} characters for Residing)</span>${remCell(a)}</td>
       </tr>`;
     }
     $('tb').innerHTML = html;
     $('tb').closest('table').classList.toggle('psfrozen', !!psFrozen);
-    if(psFrozen) $('tb').querySelectorAll('select,input').forEach(el => el.disabled = true);
+    if(psFrozen) $('tb').querySelectorAll('select,input,textarea').forEach(el => el.disabled = true);
     showFrozen();
     $('none').classList.toggle('hide', n>0);
     $('shown').textContent = `Showing ${n} of ${rows.length}`;
@@ -430,10 +455,10 @@
     $('sBar').style.width = (rows.length ? done/rows.length*100 : 0)+'%';
     $('save').disabled = busy || !dirty.size || !hasBackend || !!psFrozen;
     $('markAllNR').disabled = busy || !rows.length || !!psFrozen;
-    const notSubmitted = rows.filter(r => !isSubmitted(r[1])).length;
+    const notSubmitted = rows.filter(r => !savedComplete(r[1])).length;
     $('freeze').disabled = busy || !!dirty.size || !hasBackend || !rows.length || notSubmitted > 0 || !!psFrozen;
     $('freeze').title = psFrozen ? 'Already frozen'
-      : notSubmitted ? `Freeze unlocks after ALL electors are submitted (${notSubmitted} still not submitted)`
+      : notSubmitted ? `Freeze unlocks after ALL electors are submitted complete, incl. Remarks for Residing (${notSubmitted} still pending)`
       : dirty.size ? 'Submit your changes first, then Freeze'
       : 'Lock your entries for good – no changes possible afterwards';
     if(!busy && dirty.size && !psFrozen) setMsg(`${dirty.size} unsaved change(s). Tap Submit to save to Google Sheet.`,'warn');
@@ -457,19 +482,31 @@
       const tmp = document.createElement('div');
       tmp.innerHTML = `<select data-k="1" ${f6Attr(ans[ep])}>${f6Opts(ans[ep])}</select>`;
       f.replaceWith(tmp.firstChild);
+      if(sel.value==='Not Residing') ans[ep][2] = '';      // remarks not taken for Not Residing
+      tr.querySelector('td.c-rem').innerHTML = `<span class="lbl-m">Remarks (min ${REM_MIN} characters for Residing)</span>${remCell(ans[ep])}`;
     }
+    markRow(tr, ep);
+  });
+  // Remarks typing: update answer, counter and row state without re-drawing the table
+  $('tb').addEventListener('input', e => {
+    const ta = e.target; if(ta.tagName!=='TEXTAREA') return;
+    const tr = ta.closest('tr'), ep = tr.dataset.ep;
+    if(isLocked(ep)){ ta.value = ans[ep][2] || ''; flagLocked(); return; }
+    ans[ep][2] = ta.value;
+    ta.classList.toggle('short', remLen(ta.value) < REM_MIN);
+    const c = tr.querySelector('.remcnt'); if(c){ const t = document.createElement('div'); t.innerHTML = remCnt(ans[ep]); c.replaceWith(t.firstChild); }
     markRow(tr, ep);
   });
   function markRow(tr, ep){
     if(isChanged(ep)) dirty.add(ep); else dirty.delete(ep);
     tr.classList.toggle('dirty', dirty.has(ep));
     tr.classList.toggle('done', isComplete(ans[ep]));
-    const lm = tr.querySelector('.lockmsg'); if(lm) lm.textContent = dirty.has(ep) ? LOCK_EDIT : LOCK_OK;
+    const lm = tr.querySelector('.lockmsg'); if(lm) lm.textContent = lockTxt(ep);
     saveDraft(); updateStats();
   }
   // Stop the dropdown from even opening on a submitted row
   const blockLocked = e => {
-    const sel = e.target; if(sel.tagName!=='SELECT' && !(sel.tagName==='INPUT' && sel.classList.contains('det'))) return;
+    const sel = e.target; if(sel.tagName!=='SELECT' && sel.tagName!=='TEXTAREA') return;
     const tr = sel.closest('tr'); if(!tr || !isLocked(tr.dataset.ep)) return;
     if(e.type==='keydown' && ['Tab','Shift'].includes(e.key)) return;
     e.preventDefault(); sel.blur(); flagLocked(tr);
@@ -482,10 +519,11 @@
     const pend = rows.filter(r => dirty.has(r[1]) && !isLocked(r[1]));
     const list = pend.filter(r => isComplete(ans[r[1]]));
     const half = pend.length - list.length;
-    if(!list.length){ setMsg('Incomplete: fill both dropdowns for each elector.','err'); return; }
+    const shortRem = pend.filter(r => ans[r[1]][0]==='Residing' && ans[r[1]][1] && !remOk(ans[r[1]])).length;
+    if(!list.length){ setMsg(shortRem ? `Remarks missing/too short: for Residing electors Remarks must be at least ${REM_MIN} characters.` : 'Incomplete: fill both dropdowns for each elector (and Remarks for Residing).','err'); return; }
     const nUpd = list.filter(r => isSubmitted(r[1])).length, nNew = list.length - nUpd;
     if(!confirm(`Submit ${list.length} elector(s)?` + (nNew ? `\n• ${nNew} new` : '') + (nUpd ? `\n• ${nUpd} already submitted – their old answers will be REPLACED` : '')
-      + (half ? `\n\n${half} incomplete elector(s) (a dropdown not selected) will NOT be submitted.` : ''))) return;
+      + (half ? `\n\n${half} incomplete elector(s) will NOT be submitted (a dropdown not selected${shortRem ? `, or Remarks shorter than ${REM_MIN} characters for ${shortRem} Residing elector(s)` : ''}).` : ''))) return;
     busy = true; $('save').disabled = true; $('save').textContent = 'Saving…';
     setMsg(`Saving ${list.length} elector(s)…`);
     const payload = { ps: cur.ps, blo: cur.blo, partName: cur.part,
@@ -532,7 +570,7 @@
   // Applies the sheet's real state to the page. Returns counts.
   function applyTruth(sent, truth){
     const pad = x => [x[0]||'', x[1]||'', x[2]||''];
-    const same = (a, b) => !!(a && b && a[0]===b[0] && a[1]===b[1]);
+    const same = (a, b) => { if(!a || !b) return false; const x = norm(a), y = norm(b); return x[0]===y[0] && x[1]===y[1] && x[2]===y[2]; };
     const r = { saved:0, taken:0, failed:0 };
     for(const ep in sent){
       const t = truth[ep];
@@ -547,7 +585,7 @@
     if(r.saved)  parts.push(`✓ ${r.saved} elector(s) SAVED to Google Sheet`);
     if(r.failed) parts.push(`✗ ${r.failed} elector(s) NOT saved – please tap Submit again`);
     if(r.taken)  parts.push(`✗ ${r.taken} elector(s) NOT updated – sheet has a different answer, tap "Reload from sheet" (red)`);
-    if(half)     parts.push(`${half} half-filled elector(s) still pending`);
+    if(half)     parts.push(`${half} incomplete elector(s) still pending (dropdown or Remarks)`);
     return parts.join(' · ') + ` (${new Date().toLocaleTimeString()})`;
   }
 
@@ -569,8 +607,8 @@
   async function freezePS(){
     if(!cur || busy || psFrozen) return;
     if(dirty.size){ setMsg('You have unsaved changes – tap Submit first, then Freeze.','err'); return; }
-    const notDone = rows.filter(r => !isSubmitted(r[1])).length;
-    if(notDone){ setMsg(`Freeze is available only after ALL electors are submitted – ${notDone} still not submitted.`,'err'); return; }
+    const notDone = rows.filter(r => !savedComplete(r[1])).length;
+    if(notDone){ setMsg(`Freeze is available only after ALL electors are submitted complete (Remarks for Residing) – ${notDone} still pending.`,'err'); return; }
     if(!confirm(`FREEZE all entries of PS-${cur.ps} (${cur.blo})?\n\nAll ${rows.length} electors are submitted.\nAfter freezing you can NOT change any entry again.`)) return;
     busy = true; updateStats(); $('freeze').textContent = 'Freezing…'; setMsg('Freezing your entries…');
     let out = null;
@@ -774,7 +812,7 @@
       const res = a[0] ? `<span class="${a[0]==='Residing'?'ans-r':'ans-nr'}">${esc(a[0])}</span>` : '<span class="ans-none">—</span>';
       const f6 = a[1] ? `<b>${esc(a[1])}</b>` : '<span class="ans-none">—</span>';
       return `<tr class="${d?'done':''}"><td>${r[0]}</td><td class="l">${esc(r[2])}</td><td>${esc(r[1])}</td><td>${esc(r[3])}</td><td class="l">${esc(r[4])}</td><td>${esc(r[6])}</td>
-        <td><span class="tag ${tagCls(r[9])}">${esc(r[9])}</span></td><td>${res}</td><td>${f6}</td></tr>`; }).join('');
+        <td><span class="tag ${tagCls(r[9])}">${esc(r[9])}</span></td><td>${res}</td><td>${f6}</td><td class="rem-cell">${a[0]==='Residing' && a[2] ? esc(a[2]) : '<span class="ans-none">—</span>'}</td></tr>`; }).join('');
     $('psNone').classList.toggle('hide', list.length > 0);
     $('psShown').textContent = `Showing ${list.length} of ${psRows.length}`;
   }
@@ -797,9 +835,9 @@
   async function loadLibs(k){ for(const src of LIBS[k]) await loadScript(src); }
   const FILTER_NAME = { done:'submitted', '':'all', pending:'pending' };
   const HEAD = ['S.No','Name of the Elector','EPIC No','Relation Type','Relation Name','Old Part No','Old Serial No','Age','Gender',
-    'Status of Elector in the ASDD List','Status after Re-verification (Residing/Not Residing)','Form-6 Obtained or Not'];
+    'Status of Elector in the ASDD List','Status after Re-verification (Residing/Not Residing)','Form-6 Obtained or Not','Remarks'];
   function exportRows(){ return psFiltered().map(r => { const a = psSaved[r[1]] || ['','',''];
-    return [Number(r[0]), r[2], r[1], r[3], r[4], r[5], Number(r[6]) || r[6], Number(r[7]) || r[7], r[8], r[9], a[0], a[1]]; }); }
+    return [Number(r[0]), r[2], r[1], r[3], r[4], r[5], Number(r[6]) || r[6], Number(r[7]) || r[7], r[8], r[9], a[0], a[1], a[0]==='Residing' ? (a[2]||'') : '']; }); }
   function exportInfo(){
     const done = psRows.filter(r => isDone(r[1])), c = (k, v) => done.filter(r => psSaved[r[1]][k] === v).length;
     return { name: `PS-${psCur.ps}_${psCur.blo}_ASDD_${FILTER_NAME[$('psF').value]}`.replace(/[^\w\-]+/g,'_'),
@@ -818,7 +856,7 @@
     await loadLibs('xlsx');
     const I = exportInfo(), rows = exportRows(), wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([HEAD, ...rows]);
-    ws['!cols'] = [6,26,14,10,24,8,8,6,7,20,26,14,22,40].map(w => ({ wch: w }));
+    ws['!cols'] = [6,26,14,10,24,8,8,6,7,20,26,14,60].map(w => ({ wch: w }));
     ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:Math.max(rows.length,1), c:HEAD.length-1} }) };
     XLSX.utils.book_append_sheet(wb, ws, 'Entries');
     const sum = XLSX.utils.aoa_to_sheet([
@@ -901,15 +939,15 @@
     doc.text(`Total: ${I.total}   Submitted: ${I.done}   Pending: ${I.pending}   Residing: ${I.res}   Not Residing: ${I.nres}   Form-6 Yes: ${I.yes}   Form-6 No: ${I.no}`, W/2, 69, { align:'center' });
     doc.setFontSize(8.5); doc.setTextColor(90);
     doc.text(`Showing: ${I.view} (${rows.length} rows)   |   Downloaded: ${I.when}`, W/2, 82, { align:'center' }); doc.setTextColor(0);
-    const cols = [0,1,2,3,4,6,9,10,11];          // S.No, Name, EPIC, Rel type, Rel name, Serial, ASDD status, Residing, Form-6
+    const cols = [0,1,2,3,4,6,9,10,11,12];       // S.No, Name, EPIC, Rel type, Rel name, Serial, ASDD status, Residing, Form-6, Remarks
     doc.autoTable({
       startY: 92, margin: { left: 24, right: 24, bottom: 30 },
-      head: [['S.N.','Name of the Elector','EPIC No.','Relation Type','Relation Name','Serial No','Status in ASDD List','Status after Re-verification','Form-6 Obtained']],
-      body: rows.length ? rows.map(r => cols.map(i => r[i] === '' ? '-' : r[i])) : [['', 'No entries to show', '', '', '', '', '', '', '']],
+      head: [['S.N.','Name of the Elector','EPIC No.','Relation Type','Relation Name','Serial No','Status in ASDD List','Status after Re-verification','Form-6 Obtained','Remarks']],
+      body: rows.length ? rows.map(r => cols.map(i => r[i] === '' ? '-' : r[i])) : [['', 'No entries to show', '', '', '', '', '', '', '', '']],
       styles: { fontSize: 7.5, cellPadding: 3, valign: 'middle', lineColor: [213,219,227], lineWidth: 0.4, overflow: 'linebreak' },
       headStyles: { fillColor: [26,95,85], textColor: 255, fontStyle: 'bold', halign: 'center' },
       alternateRowStyles: { fillColor: [242,246,248] },
-      columnStyles: { 0:{halign:'center',cellWidth:32}, 2:{halign:'center'}, 3:{halign:'center'}, 5:{halign:'center',cellWidth:44}, 6:{halign:'center'}, 7:{halign:'center',fontStyle:'bold'}, 8:{halign:'center',fontStyle:'bold',cellWidth:60} },
+      columnStyles: { 0:{halign:'center',cellWidth:32}, 2:{halign:'center'}, 3:{halign:'center'}, 5:{halign:'center',cellWidth:44}, 6:{halign:'center'}, 7:{halign:'center',fontStyle:'bold'}, 8:{halign:'center',fontStyle:'bold',cellWidth:50}, 9:{cellWidth:190} },
       didDrawPage: d => { doc.setFontSize(8); doc.setTextColor(120);
         doc.text(`PS-${psCur.ps} ${psCur.blo} - Page ${doc.internal.getNumberOfPages()}`, W - 24, doc.internal.pageSize.getHeight() - 14, { align:'right' }); doc.setTextColor(0); }
     });
