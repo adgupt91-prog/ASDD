@@ -45,10 +45,11 @@
   td select.empty{border-color:#c4472f;background:#fff7f5}
   td.c-rem{min-width:260px;text-align:left}
   td textarea.rem{width:100%;min-width:240px;min-height:64px;font:inherit;font-size:13px;border:1px solid #9aa5b4;border-radius:6px;padding:6px 8px;resize:vertical;background:#fff;color:var(--ink)}
-  td textarea.rem.short{border-color:#c4472f;background:#fff7f5}
   td textarea.rem:disabled{background:#eef1f4;color:#8a929e;border-color:#c3cad3;cursor:not-allowed;resize:none;min-height:38px}
   .remcnt{font-size:11px;font-weight:600;margin-top:2px;color:var(--muted)}
-  .remcnt.bad{color:var(--err)} .remcnt.good{color:var(--done-ink)}
+  .remcnt.bad{color:var(--err)}
+  .remcnt .hint{color:var(--blue);font-weight:700}
+  td textarea.rem.need{border-color:#c4472f;background:#fff7f5}
   #psTb td.rem-cell{text-align:left;font-size:12px;min-width:220px;white-space:normal}
   td select.frozen{background:#eef1f4;color:#4a5260;border-color:#c3cad3;cursor:not-allowed;opacity:1}
   tr.locked.dirty .lockmsg{color:#b26a00}
@@ -189,7 +190,7 @@
           <th>Relation Type</th><th>Relation Name</th><th>Part No</th><th>Serial No</th><th>Status of Elector in the ASDD List</th>
           <th>Status of Elector after Re-verification by BLOs (Residing/Not Residing)</th>
           <th>If found to be eligible for Enrolment, Form-6 Obtained or Not</th>
-          <th>Remarks<br><span style="font-weight:400;font-size:11px">(mandatory for Residing, min 100 characters)</span></th>
+          <th>Remarks<br><span style="font-weight:400;font-size:11px">(mandatory for Residing, max 150 characters)</span></th>
         </tr></thead>
         <tbody id="tb"></tbody>
       </table>
@@ -295,17 +296,18 @@
   const f6Attr = a => a[0]==='Not Residing' ? 'class="frozen" disabled title="Not Residing – Form-6 is automatically No"' : `class="${a[1]?'':'empty'}"`;
   const detKind = () => null;
   // Remarks (3rd value, stored in the sheet's old Ref/Reason slot): disabled for Not Residing,
-  // mandatory for Residing (Form-6 Yes or No) with at least REM_MIN characters.
-  const REM_MIN = 100;
+  // mandatory for Residing (Form-6 Yes or No), at most REM_MAX characters. Hint: Form-6 Yes -> Reference Number, No -> Reason.
+  const REM_MAX = 150;
   const remLen = v => String(v||'').trim().length;
-  const remOk = a => a[0]==='Not Residing' || remLen(a[2]) >= REM_MIN;
+  const remOk = a => a[0]!=='Residing' || (remLen(a[2]) >= 1 && remLen(a[2]) <= REM_MAX);
+  const remHint = a => a[1]==='Yes' ? 'Reference Number' : a[1]==='No' ? 'Reason' : 'Reference Number (Form-6 Yes) / Reason (Form-6 No)';
   const isComplete = a => !!(a && a[0] && a[1] && remOk(a));
   const norm = a => [a[0]||'', a[1]||'', a[0]==='Residing' ? String(a[2]||'').trim() : ''];
   const remCnt = a => { const n = remLen(a[2]); return a[0]==='Not Residing' ? '' :
-    `<div class="remcnt ${n>=REM_MIN?'good':'bad'}">${n} / ${REM_MIN} characters${n>=REM_MIN?' ✓':' – '+(REM_MIN-n)+' more needed'}</div>`; };
+    `<div class="remcnt${!n || n>REM_MAX?' bad':''}"><span class="hint">${remHint(a)}</span> · ${n ? n + ' / ' + REM_MAX + ' characters' : 'Required'}</div>`; };
   const remCell = a => { const nr = a[0]==='Not Residing';
-    return `<textarea class="rem${!nr && remLen(a[2])<REM_MIN?' short':''}" data-k="2" maxlength="1000" ${nr?'disabled title="Not Residing – Remarks not required"':''}
-      placeholder="${nr?'Not required for Not Residing':'Write remarks (minimum '+REM_MIN+' characters)'}">${nr?'':esc(a[2]||'')}</textarea>${remCnt(a)}`; };
+    return `<textarea class="rem${!nr && !remLen(a[2])?' need':''}" data-k="2" maxlength="${REM_MAX}" ${nr?'disabled title="Not Residing – Remarks not required"':''}
+      placeholder="${nr?'Not required for Not Residing':remHint(a)+' (required, max '+REM_MAX+' characters)'}">${nr?'':esc(a[2]||'')}</textarea>${remCnt(a)}`; };
   const setMsg = (t, cls) => { const m=$('msg'); m.textContent=t; m.className=cls||''; };
 
   async function getJSON(u){ const r = await fetch(u, {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
@@ -393,7 +395,7 @@
       else if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
       else{ const needRem = rows.filter(r => isSubmitted(r[1]) && !savedComplete(r[1])).length;
-        setMsg(needRem ? `${needRem} Residing elector(s) need Remarks (min ${REM_MIN} characters) – fill them and tap Submit.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Fill both dropdowns for each elector (and Remarks for Residing), then tap Submit.', needRem ? 'warn' : ''); }
+        setMsg(needRem ? `${needRem} Residing elector(s) need Remarks (Reference Number / Reason) – fill them and tap Submit.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Fill both dropdowns for each elector (and Remarks for Residing), then tap Submit.', needRem ? 'warn' : ''); }
     }catch(e){ setMsg('Failed to load list: '+e.message,'err'); }
     finally{ $('loader').classList.add('hide'); }
   }
@@ -403,7 +405,8 @@
   let psFrozen = null;                       // null, or {at, by} when this PS is frozen
   const isSubmitted = ep => !!(saved[ep] && saved[ep][0] && saved[ep][1]);
   const isLocked = () => !!psFrozen;
-  const LOCK_OK = '✓ Submitted', LOCK_EDIT = '✎ Edited – tap Submit to update', LOCK_ERR = 'Not updated – tap Reload', LOCK_REM = '⚠ Remarks needed – fill & Submit again';
+  const LOCK_OK = '✓ Submitted', LOCK_EDIT = '✎ Edited – tap Submit to update', LOCK_ERR = 'Not updated – tap Reload';
+  const LOCK_REM = '⚠ Remarks needed – fill & Submit again';
   const lockTxt = ep => errEp.has(ep) ? LOCK_ERR : dirty.has(ep) ? LOCK_EDIT : savedComplete(ep) ? LOCK_OK : LOCK_REM;
   function flagLocked(){ setMsg(`🔒 Entries are frozen${psFrozen && psFrozen.at ? ' (since ' + psFrozen.at + ')' : ''} – they cannot be changed.`,'err'); }
   function showFrozen(){
@@ -436,7 +439,7 @@
         <td class="c-rel"><span class="lbl-m">Status in ASDD list</span><span class="tag ${tagCls(st)}">${esc(st)}</span></td>
         <td class="c-sel"><span class="lbl-m">After re-verification</span><select data-k="0" class="${a[0]?'':'empty'}">${opts(RES,a[0])}</select></td>
         <td class="c-sel"><span class="lbl-m">Form-6 obtained?</span><select data-k="1" ${f6Attr(a)}>${f6Opts(a)}</select>${lk?`<div class="lockmsg">${lockTxt(epic)}</div>`:''}</td>
-        <td class="c-rem"><span class="lbl-m">Remarks (min ${REM_MIN} characters for Residing)</span>${remCell(a)}</td>
+        <td class="c-rem"><span class="lbl-m">Remarks (required for Residing)</span>${remCell(a)}</td>
       </tr>`;
     }
     $('tb').innerHTML = html;
@@ -458,7 +461,7 @@
     const notSubmitted = rows.filter(r => !savedComplete(r[1])).length;
     $('freeze').disabled = busy || !!dirty.size || !hasBackend || !rows.length || notSubmitted > 0 || !!psFrozen;
     $('freeze').title = psFrozen ? 'Already frozen'
-      : notSubmitted ? `Freeze unlocks after ALL electors are submitted complete, incl. Remarks for Residing (${notSubmitted} still pending)`
+      : notSubmitted ? `Freeze unlocks after ALL electors are submitted with Remarks for Residing (${notSubmitted} still pending)`
       : dirty.size ? 'Submit your changes first, then Freeze'
       : 'Lock your entries for good – no changes possible afterwards';
     if(!busy && dirty.size && !psFrozen) setMsg(`${dirty.size} unsaved change(s). Tap Submit to save to Google Sheet.`,'warn');
@@ -483,7 +486,11 @@
       tmp.innerHTML = `<select data-k="1" ${f6Attr(ans[ep])}>${f6Opts(ans[ep])}</select>`;
       f.replaceWith(tmp.firstChild);
       if(sel.value==='Not Residing') ans[ep][2] = '';      // remarks not taken for Not Residing
-      tr.querySelector('td.c-rem').innerHTML = `<span class="lbl-m">Remarks (min ${REM_MIN} characters for Residing)</span>${remCell(ans[ep])}`;
+      tr.querySelector('td.c-rem').innerHTML = `<span class="lbl-m">Remarks (required for Residing)</span>${remCell(ans[ep])}`;
+    }else if(k===1){                                     // Form-6 changed: switch hint Reference Number <-> Reason
+      const ta = tr.querySelector('textarea.rem');
+      if(ta && !ta.disabled) ta.placeholder = remHint(ans[ep]) + ' (required, max ' + REM_MAX + ' characters)';
+      const c = tr.querySelector('.remcnt'); if(c){ const t = document.createElement('div'); t.innerHTML = remCnt(ans[ep]); c.replaceWith(t.firstChild); }
     }
     markRow(tr, ep);
   });
@@ -493,7 +500,7 @@
     const tr = ta.closest('tr'), ep = tr.dataset.ep;
     if(isLocked(ep)){ ta.value = ans[ep][2] || ''; flagLocked(); return; }
     ans[ep][2] = ta.value;
-    ta.classList.toggle('short', remLen(ta.value) < REM_MIN);
+    ta.classList.toggle('need', !remLen(ta.value));
     const c = tr.querySelector('.remcnt'); if(c){ const t = document.createElement('div'); t.innerHTML = remCnt(ans[ep]); c.replaceWith(t.firstChild); }
     markRow(tr, ep);
   });
@@ -519,11 +526,11 @@
     const pend = rows.filter(r => dirty.has(r[1]) && !isLocked(r[1]));
     const list = pend.filter(r => isComplete(ans[r[1]]));
     const half = pend.length - list.length;
-    const shortRem = pend.filter(r => ans[r[1]][0]==='Residing' && ans[r[1]][1] && !remOk(ans[r[1]])).length;
-    if(!list.length){ setMsg(shortRem ? `Remarks missing/too short: for Residing electors Remarks must be at least ${REM_MIN} characters.` : 'Incomplete: fill both dropdowns for each elector (and Remarks for Residing).','err'); return; }
+    const noRem = pend.filter(r => ans[r[1]][0]==='Residing' && ans[r[1]][1] && !remOk(ans[r[1]])).length;
+    if(!list.length){ setMsg(noRem ? 'Remarks are required for Residing electors (Reference Number if Form-6 Yes, Reason if Form-6 No).' : 'Incomplete: fill both dropdowns for each elector.','err'); return; }
     const nUpd = list.filter(r => isSubmitted(r[1])).length, nNew = list.length - nUpd;
     if(!confirm(`Submit ${list.length} elector(s)?` + (nNew ? `\n• ${nNew} new` : '') + (nUpd ? `\n• ${nUpd} already submitted – their old answers will be REPLACED` : '')
-      + (half ? `\n\n${half} incomplete elector(s) will NOT be submitted (a dropdown not selected${shortRem ? `, or Remarks shorter than ${REM_MIN} characters for ${shortRem} Residing elector(s)` : ''}).` : ''))) return;
+      + (half ? `\n\n${half} incomplete elector(s) will NOT be submitted (a dropdown not selected${noRem ? `, or Remarks left blank for ${noRem} Residing elector(s)` : ''}).` : ''))) return;
     busy = true; $('save').disabled = true; $('save').textContent = 'Saving…';
     setMsg(`Saving ${list.length} elector(s)…`);
     const payload = { ps: cur.ps, blo: cur.blo, partName: cur.part,
@@ -608,7 +615,7 @@
     if(!cur || busy || psFrozen) return;
     if(dirty.size){ setMsg('You have unsaved changes – tap Submit first, then Freeze.','err'); return; }
     const notDone = rows.filter(r => !savedComplete(r[1])).length;
-    if(notDone){ setMsg(`Freeze is available only after ALL electors are submitted complete (Remarks for Residing) – ${notDone} still pending.`,'err'); return; }
+    if(notDone){ setMsg(`Freeze is available only after ALL electors are submitted (with Remarks for Residing) – ${notDone} still pending.`,'err'); return; }
     if(!confirm(`FREEZE all entries of PS-${cur.ps} (${cur.blo})?\n\nAll ${rows.length} electors are submitted.\nAfter freezing you can NOT change any entry again.`)) return;
     busy = true; updateStats(); $('freeze').textContent = 'Freezing…'; setMsg('Freezing your entries…');
     let out = null;
