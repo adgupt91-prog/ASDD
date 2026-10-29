@@ -211,6 +211,10 @@
     <div class="overall"><div class="lbl"><span id="ovLbl">Overall progress</span><span id="ovPct">0%</span></div><div class="big"><i id="ovBar"></i></div></div>
     <div class="stats" id="admStats"></div>
     <div class="panel filters">
+      <select id="admMode" title="Which progress to show">
+        <option value="">Re-verification progress</option>
+        <option value="rem">Remarks progress</option>
+      </select>
       <input type="search" id="admQ" placeholder="Search PS no., BLO or part name">
       <select id="admF"><option value="">All BLOs</option><option value="zero">Not started</option><option value="part">In progress</option><option value="full">Completed 100%</option></select>
       <select id="admOrd" class="hide" title="Order of In-progress BLOs (also used in the PDF)">
@@ -221,7 +225,7 @@
       <span class="meta" id="admMsg" style="margin:0"></span>
     </div>
     <div class="tablewrap"><table id="admTable">
-      <thead><tr>
+      <thead id="admHead"><tr>
         <th data-s="ps">PS No</th><th data-s="blo">BLO Name</th><th data-s="part">Part Name</th><th data-s="n">ASDD Total</th>
         <th data-s="done">Completed</th><th data-s="pct">Progress</th><th data-s="residing">Residing</th><th data-s="notResiding">Not Residing</th><th data-s="f6yes">Form-6 Yes</th><th data-s="f6no">Form-6 No</th>
       </tr></thead>
@@ -667,7 +671,7 @@
     $('savebar').style.display = (!on && cur) ? 'block' : 'none';
     $('adminBtn').classList.toggle('hide', on); $('aeroBtn').classList.toggle('hide', on);
     $('admTitle').textContent = viewer ? `${viewer.name} · PS ${viewer.from}–${viewer.to}` : 'Admin · BLO-wise progress';
-    $('admQ').value = ''; $('admF').value = ''; $('admOrd').value = 'asc'; $('admOrd').classList.add('hide');
+    $('admQ').value = ''; $('admF').value = ''; $('admOrd').value = 'asc'; $('admOrd').classList.add('hide'); remSum = null;
     if(on) loadAdmin();
     window.scrollTo(0,0);
   }
@@ -686,45 +690,115 @@
   $('admExit').addEventListener('click', () => { if(viewer) ss.del('asdd_aero'); viewer = null; closePS(); showAdmin(false); });
   $('admRefresh').addEventListener('click', () => psCur ? openPS(psCur.ps) : loadAdmin());
 
+  // Admin progress mode: '' = re-verification progress, 'rem' = Remarks progress (Residing electors whose Remarks are filled)
+  let admMode = '', admSum = {}, remSum = null, remBusy = false;
+  const fmt = v => Number(v).toLocaleString('en-IN');
+  const MAIN_HEAD = [['ps','PS No'],['blo','BLO Name'],['part','Part Name'],['n','ASDD Total'],['done','Completed'],['pct','Progress'],
+    ['residing','Residing'],['notResiding','Not Residing'],['f6yes','Form-6 Yes'],['f6no','Form-6 No']];
+  const REM_HEAD  = [['ps','PS No'],['blo','BLO Name'],['part','Part Name'],['rN','Residing (Remarks needed)'],['rDone','Remarks Filled'],
+    ['rPct','Remarks Progress'],['rPend','Remarks Pending'],['f6yesR','Form-6 Yes'],['f6noR','Form-6 No']];
+  // Keys used by filters / sort / overall bar for the current mode
+  const MK = () => admMode ? { n:'rN', d:'rDone', p:'rPct' } : { n:'n', d:'done', p:'pct' };
+
+  // Remarks counts per PS. Uses the Apps Script action "remsummary" if it is deployed;
+  // otherwise reads each PS's entries one by one (slower, but needs no script change).
+  async function loadRemSum(){
+    try{
+      const r = await backendGet(URL_ + '?action=remsummary');
+      if(r && r.ok && r.remarks && r.data) return r.data;
+    }catch(e){}
+    const out = {}, list = inScope(blos); let i = 0, doneN = 0;
+    const worker = async () => {
+      while(i < list.length){
+        const b = list[i++];
+        const sv = await backendGet(`${URL_}?action=get&ps=${b.ps}`).catch(() => null);
+        if(!sv || !sv.ok) throw new Error('could not read PS-' + b.ps);
+        const o = { residing:0, remarks:0, f6yes:0, f6no:0 };
+        for(const ep in (sv.data || {})){ const a = sv.data[ep] || [];
+          if(a[0]==='Residing'){ o.residing++; if(String(a[2]||'').trim()) o.remarks++; if(a[1]==='Yes') o.f6yes++; else if(a[1]==='No') o.f6no++; } }
+        out[b.ps] = o;
+        $('admMsg').textContent = `Reading remarks… ${++doneN} of ${list.length} BLOs`;
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    return out;
+  }
+
   async function loadAdmin(){
     $('admMsg').textContent = 'Loading…';
-    let sum = {};
+    admSum = {};
     if(!hasBackend) $('admMsg').textContent = 'Google Sheet link not set in config.js.';
     else try{
       const r = await backendGet(URL_ + '?action=summary');
-      if(!r.ok) throw new Error(r.error); sum = r.data;
+      if(!r.ok) throw new Error(r.error); admSum = r.data || {};
+      if(admMode==='rem'){
+        if(remBusy) return; remBusy = true;
+        try{ remSum = await loadRemSum(); } finally{ remBusy = false; }
+      }
       $('admMsg').textContent = 'Updated ' + new Date().toLocaleTimeString();
     }catch(e){ $('admMsg').textContent = 'Could not read Google Sheet: ' + e.message; }
-    admList = blos.map(b => { const s = sum[b.ps] || {}, done = s.done||0;
-      return {...b, done, pct: b.n ? done/b.n*100 : 0, residing:s.residing||0, notResiding:s.notResiding||0, f6yes:s.f6yes||0, f6no:s.f6no||0, frozen:!!s.frozen}; });
-    const scope = inScope(admList);
-    const T = k => scope.reduce((a,b) => a + b[k], 0), tot = T('n'), dn = T('done'), pct = tot ? dn/tot*100 : 0;
-    $('ovLbl').textContent = `${viewer ? viewer.name.split(',')[0] + ' – ' : ''}overall progress · ${dn.toLocaleString('en-IN')} of ${tot.toLocaleString('en-IN')} electors done · ${scope.length} BLOs`;
-    $('ovPct').textContent = pct.toFixed(1) + '%'; $('ovBar').style.width = pct + '%';
-    $('admStats').innerHTML = [
-      ['Total ASDD electors', tot.toLocaleString('en-IN')], ['Completed', `${dn.toLocaleString('en-IN')} (${pct.toFixed(1)}%)`],
-      ['BLOs not started', scope.filter(b => !b.done).length], ['BLOs 100% done', scope.filter(b => b.done >= b.n).length],
-      ['Residing', T('residing').toLocaleString('en-IN')], ['Form-6 obtained', T('f6yes').toLocaleString('en-IN')]
-    ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
-    drawAdmin();
+    buildAdmList();
+  }
+  function buildAdmList(){
+    admList = blos.map(b => { const s = admSum[b.ps] || {}, done = s.done||0, r = (remSum && remSum[b.ps]) || {};
+      const rN = r.residing != null ? r.residing : (s.residing||0), rDone = r.remarks||0;
+      return {...b, done, pct: b.n ? done/b.n*100 : 0, residing:s.residing||0, notResiding:s.notResiding||0, f6yes:s.f6yes||0, f6no:s.f6no||0, frozen:!!s.frozen,
+        rN, rDone, rPend: rN - rDone, rPct: rN ? rDone/rN*100 : 100, f6yesR: r.f6yes != null ? r.f6yes : (s.f6yes||0), f6noR: r.f6no != null ? r.f6no : 0}; });
+    drawOverall(); drawAdmin();
+  }
+  function drawOverall(){
+    const scope = inScope(admList), who = viewer ? viewer.name.split(',')[0] + ' – ' : '';
+    const T = k => scope.reduce((a,b) => a + b[k], 0);
+    if(admMode==='rem'){
+      const tot = T('rN'), dn = T('rDone'), pct = tot ? dn/tot*100 : 0;
+      $('ovLbl').textContent = `${who}Remarks progress · ${fmt(dn)} of ${fmt(tot)} Residing electors have Remarks · ${scope.length} BLOs`;
+      $('ovPct').textContent = pct.toFixed(1) + '%'; $('ovBar').style.width = pct + '%';
+      $('admStats').innerHTML = [
+        ['Residing electors', fmt(tot)], ['Remarks filled', `${fmt(dn)} (${pct.toFixed(1)}%)`], ['Remarks pending', fmt(tot - dn)],
+        ['BLOs with pending Remarks', scope.filter(b => b.rPend > 0).length], ['BLOs Remarks 100%', scope.filter(b => b.rN && b.rPend <= 0).length],
+        ['BLOs with no Residing', scope.filter(b => !b.rN).length]
+      ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+    }else{
+      const tot = T('n'), dn = T('done'), pct = tot ? dn/tot*100 : 0;
+      $('ovLbl').textContent = `${who}overall progress · ${fmt(dn)} of ${fmt(tot)} electors done · ${scope.length} BLOs`;
+      $('ovPct').textContent = pct.toFixed(1) + '%'; $('ovBar').style.width = pct + '%';
+      $('admStats').innerHTML = [
+        ['Total ASDD electors', fmt(tot)], ['Completed', `${fmt(dn)} (${pct.toFixed(1)}%)`],
+        ['BLOs not started', scope.filter(b => !b.done).length], ['BLOs 100% done', scope.filter(b => b.done >= b.n).length],
+        ['Residing', fmt(T('residing'))], ['Form-6 obtained', fmt(T('f6yes'))]
+      ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+    }
   }
   const inScope = list => viewer ? list.filter(b => b.ps >= viewer.from && b.ps <= viewer.to) : list;
   function admFiltered(){
-    const q = $('admQ').value.trim().toUpperCase(), f = $('admF').value;
+    const q = $('admQ').value.trim().toUpperCase(), f = $('admF').value, K = MK();
+    // Remarks mode: "Not started" = Residing electors present but no Remarks yet; BLOs with no Residing count as Completed
     return inScope(admList).filter(b => (!q || String(b.ps)===q || b.blo.toUpperCase().includes(q) || b.part.toUpperCase().includes(q))
-      && (!f || (f==='zero' && !b.done) || (f==='part' && b.done && b.done<b.n) || (f==='full' && b.done>=b.n)))
+      && (!f || (f==='zero' && !b[K.d] && b[K.n] > 0) || (f==='part' && b[K.d] && b[K.d]<b[K.n]) || (f==='full' && b[K.d]>=b[K.n])))
       .sort((a,b) => {
-        if(f==='part'){ const d = (a.pct - b.pct) * ($('admOrd').value==='desc' ? -1 : 1); return d || a.ps - b.ps; }
+        if(f==='part'){ const d = (a[K.p] - b[K.p]) * ($('admOrd').value==='desc' ? -1 : 1); return d || a.ps - b.ps; }
         const x=a[admSort], y=b[admSort]; return (x>y?1:x<y?-1:0) * (admAsc?1:-1); });
   }
+  const pbarCell = (pct, txt) => `<td><span class="pbar"><i style="width:${pct}%"></i></span>${txt != null ? txt : Math.floor(pct) + '%'}</td>`;
   function drawAdmin(){
-    const list = admFiltered();
-    $('admTb').innerHTML = list.map(b => `<tr class="${b.done?'':'zero'}"><td><a href="#" class="pslink" data-ps="${b.ps}" title="Open PS-${b.ps} entries">${b.ps}</a></td><td class="l">${esc(b.blo)}${b.frozen ? ' <span title="Entries frozen by BLO">🔒</span>' : ''}</td><td class="l">${esc(b.part)}</td>
-      <td>${b.n}</td><td>${b.done}</td><td><span class="pbar"><i style="width:${b.pct}%"></i></span>${Math.floor(b.pct)}%</td>
-      <td>${b.residing}</td><td>${b.notResiding}</td><td>${b.f6yes}</td><td>${b.f6no}</td></tr>`).join('');
+    const list = admFiltered(), H = admMode ? REM_HEAD : MAIN_HEAD;
+    $('admHead').innerHTML = '<tr>' + H.map(([k,t]) => `<th data-s="${k}">${t}</th>`).join('') + '</tr>';
+    const first = b => `<td><a href="#" class="pslink" data-ps="${b.ps}" title="Open PS-${b.ps} entries">${b.ps}</a></td><td class="l">${esc(b.blo)}${b.frozen ? ' <span title="Entries frozen by BLO">🔒</span>' : ''}</td><td class="l">${esc(b.part)}</td>`;
+    $('admTb').innerHTML = admMode
+      ? list.map(b => `<tr class="${b.rN && !b.rDone ? 'zero' : ''}">${first(b)}
+          <td>${b.rN}</td><td>${b.rDone}</td>${pbarCell(b.rN ? b.rPct : 0, b.rN ? null : 'No Residing')}<td>${b.rPend ? '<b style="color:var(--err)">' + b.rPend + '</b>' : 0}</td><td>${b.f6yesR}</td><td>${b.f6noR}</td></tr>`).join('')
+      : list.map(b => `<tr class="${b.done?'':'zero'}">${first(b)}
+          <td>${b.n}</td><td>${b.done}</td>${pbarCell(b.pct)}
+          <td>${b.residing}</td><td>${b.notResiding}</td><td>${b.f6yes}</td><td>${b.f6no}</td></tr>`).join('');
   }
-  document.querySelectorAll('#admTable th').forEach(th => th.addEventListener('click', () => {
-    const k = th.dataset.s; admAsc = admSort===k ? !admAsc : true; admSort = k; drawAdmin(); }));
+  $('admHead').addEventListener('click', e => { const th = e.target.closest('th'); if(!th) return;
+    const k = th.dataset.s; admAsc = admSort===k ? !admAsc : true; admSort = k; drawAdmin(); });
+  $('admMode').addEventListener('change', () => {
+    admMode = $('admMode').value; admSort = 'ps'; admAsc = true;
+    const lbl = admMode ? ['All BLOs','Remarks not started','Remarks in progress','Remarks 100% done'] : ['All BLOs','Not started','In progress','Completed 100%'];
+    [...$('admF').options].forEach((o, i) => o.textContent = lbl[i]);
+    if(admMode && !remSum) loadAdmin(); else buildAdmList();
+  });
   // Ascending/Descending option appears only for "In progress" BLOs
   $('admF').addEventListener('change', () => $('admOrd').classList.toggle('hide', $('admF').value !== 'part'));
   $('admOrd').addEventListener('change', drawAdmin);
@@ -736,23 +810,27 @@
     try{
       await loadLibs('pdf');
       const list = admFiltered(), fTxt = $('admF').selectedOptions[0].text, q = $('admQ').value.trim();
-      const T = k => list.reduce((a,b) => a + b[k], 0), tot = T('n'), dn = T('done');
+      const T = k => list.reduce((a,b) => a + b[k], 0), K = MK(), tot = T(K.n), dn = T(K.d), R = admMode==='rem';
       const doc = new window.jspdf.jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
       const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
       doc.setFont('helvetica','bold'); doc.setFontSize(15);
-      doc.text('Status of Re-verification of ASDD Electors – BLO-wise', W/2, 36, { align:'center' });
+      doc.text(R ? 'Remarks Progress of Residing ASDD Electors – BLO-wise' : 'Status of Re-verification of ASDD Electors – BLO-wise', W/2, 36, { align:'center' });
       doc.setFont('helvetica','normal'); doc.setFontSize(10);
       doc.text(`District: CENTRAL   |   AC: 24 - PATEL NAGAR${viewer ? '   |   ' + viewer.name + ' (PS ' + viewer.from + '–' + viewer.to + ')' : ''}`, W/2, 54, { align:'center' });
       doc.setFont('helvetica','bold');
-      doc.text(`BLOs: ${fTxt}${q ? ' · search "' + q + '"' : ''}  –  ${list.length} BLO(s)   |   ASDD electors: ${tot}   Completed: ${dn} (${tot ? (dn/tot*100).toFixed(1) : 0}%)   Pending: ${tot - dn}`, W/2, 70, { align:'center' });
+      doc.text(`BLOs: ${fTxt}${q ? ' · search "' + q + '"' : ''}  –  ${list.length} BLO(s)   |   ${R ? 'Residing electors' : 'ASDD electors'}: ${tot}   ${R ? 'Remarks filled' : 'Completed'}: ${dn} (${tot ? (dn/tot*100).toFixed(1) : 0}%)   Pending: ${tot - dn}`, W/2, 70, { align:'center' });
       doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(90);
       doc.text(($('admF').value==='part' ? 'Order: ' + $('admOrd').selectedOptions[0].text + '   |   ' : '') + 'Generated: ' + new Date().toLocaleString('en-IN'), W/2, 83, { align:'center' }); doc.setTextColor(0);
       doc.autoTable({
         startY: 92, margin: { left: 24, right: 24, bottom: 30 },
-        head: [['S.N.','PS No','BLO Name','Part Name','ASDD Total','Completed','Pending','Progress','Residing','Not Residing','Form-6 Yes','Form-6 No']],
-        body: list.length ? list.map((b,i) => [i+1, b.ps, b.blo + (b.frozen ? ' (Frozen)' : ''), b.part, b.n, b.done, b.n - b.done, b.pct, b.residing, b.notResiding, b.f6yes, b.f6no])
-                          : [['', '', 'No BLOs in this filter', '', '', '', '', '', '', '', '', '']],
-        foot: list.length ? [['', '', 'TOTAL', '', tot, dn, tot - dn, tot ? dn/tot*100 : 0, T('residing'), T('notResiding'), T('f6yes'), T('f6no')]] : undefined,
+        head: R ? [['S.N.','PS No','BLO Name','Part Name','Residing','Remarks Filled','Remarks Pending','Remarks Progress','Form-6 Yes','Form-6 No']]
+                : [['S.N.','PS No','BLO Name','Part Name','ASDD Total','Completed','Pending','Progress','Residing','Not Residing','Form-6 Yes','Form-6 No']],
+        body: !list.length ? [['', '', 'No BLOs in this filter', '', '', '', '', '', '', ''].concat(R ? [] : ['', ''])]
+          : R ? list.map((b,i) => [i+1, b.ps, b.blo + (b.frozen ? ' (Frozen)' : ''), b.part, b.rN, b.rDone, b.rPend, b.rN ? b.rPct : 'No Residing', b.f6yesR, b.f6noR])
+              : list.map((b,i) => [i+1, b.ps, b.blo + (b.frozen ? ' (Frozen)' : ''), b.part, b.n, b.done, b.n - b.done, b.pct, b.residing, b.notResiding, b.f6yes, b.f6no]),
+        foot: !list.length ? undefined
+          : R ? [['', '', 'TOTAL', '', tot, dn, tot - dn, tot ? dn/tot*100 : 0, T('f6yesR'), T('f6noR')]]
+              : [['', '', 'TOTAL', '', tot, dn, tot - dn, tot ? dn/tot*100 : 0, T('residing'), T('notResiding'), T('f6yes'), T('f6no')]],
         styles: { fontSize: 8, cellPadding: 3, valign: 'middle', halign: 'center', lineColor: [213,219,227], lineWidth: 0.4 },
         headStyles: { fillColor: [26,95,85], textColor: 255, fontStyle: 'bold' },
         footStyles: { fillColor: [230,237,241], textColor: 0, fontStyle: 'bold' },
@@ -772,7 +850,7 @@
           doc.text('Page ' + doc.internal.getNumberOfPages(), W - 24, H - 14, { align:'right' }); doc.setTextColor(0); }
       });
       const d = new Date(), tag = { '':'All', zero:'Not_started', part:'In_progress', full:'Completed' }[$('admF').value];
-      doc.save(`BLOs_${tag}${viewer ? '_PS' + viewer.from + '-' + viewer.to : ''}_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.pdf`);
+      doc.save(`${R ? 'Remarks_' : ''}BLOs_${tag}${viewer ? '_PS' + viewer.from + '-' + viewer.to : ''}_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.pdf`);
     }catch(e){ alert('Could not make the PDF: ' + e.message); }
     finally{ btn.disabled = false; btn.textContent = old; }
   }); $('admF').addEventListener('change', drawAdmin);
