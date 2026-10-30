@@ -3,10 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>ASDD Re-verification — AC 24 Patel Nagar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="config.js"></script>
+<script src="config.js?v=2026-10-30-1"></script>
 <style>
   :root{
     --blue:#2f5fad; --teal:#1a5f55; --teal-2:#237467; --ink:#1d2433; --muted:#5d6676;
@@ -649,7 +652,39 @@
   });
   let t; $('q').addEventListener('input', () => { clearTimeout(t); t = setTimeout(render, 150); });
   $('fStatus').addEventListener('change', render); $('fShow').addEventListener('change', render);
-  window.addEventListener('beforeunload', e => { if(dirty.size){ e.preventDefault(); e.returnValue=''; } });
+  let skipUnloadPrompt = false;
+  window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
+
+  // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
+  const APP_VER = '2026-10-30-1';
+  function reloadFresh(){
+    skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
+    const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
+  }
+  function showUpdateBanner(){
+    if(document.getElementById('updBanner')) return;
+    const b = document.createElement('div'); b.id = 'updBanner';
+    b.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9999;background:#c4472f;color:#fff;font-weight:700;padding:12px 14px;text-align:center;font-size:15px;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer';
+    b.textContent = 'New version of the website is available – tap here to refresh (your unsaved entries will be kept)';
+    b.onclick = reloadFresh; document.body.appendChild(b);
+  }
+  let verChecking = false;
+  async function checkVersion(){
+    if(verChecking) return; verChecking = true;
+    try{
+      const r = await fetch('version.json?t=' + Date.now(), {cache:'no-store'});
+      if(!r.ok) return;
+      const v = (await r.json()).version;
+      if(v && v !== APP_VER){
+        if(!dirty.size && !busy) reloadFresh(); else showUpdateBanner();
+      }
+    }catch(e){ /* offline – try again later */ }
+    finally{ verChecking = false; }
+  }
+  checkVersion();
+  setInterval(checkVersion, 2 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') checkVersion(); });
+  window.addEventListener('pageshow', e => { if(e.persisted) checkVersion(); });
   /* ---------- Admin ---------- */
   // ERO / AEROs and their booths (from District Daily Report, AC-24 Patel Nagar, 22-Oct-2026)
   const AEROS = [
