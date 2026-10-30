@@ -657,7 +657,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-10-30-3';
+  const APP_VER = '2026-10-30-4';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
@@ -1062,9 +1062,10 @@
       ]);
       if(!sv.ok) throw new Error(sv.error || 'Server error');
       const sum = sv.data || {};
-      let covered = 0, f6 = 0;
-      blos.forEach(b => { const x = sum[b.ps] || {}; covered += x.done || 0; f6 += x.f6yes || 0; });
-      const matched = covered - f6;
+      let covered = 0, f6 = 0, residing = 0;
+      blos.forEach(b => { const x = sum[b.ps] || {}; covered += x.done || 0; f6 += x.f6yes || 0; residing += x.residing || 0; });
+      const matched = AC_ASDD_TOTAL - residing;     // Match = all ASDD cases except those found Residing
+      const mismatch = residing;                     // Mismatch = cases found Residing
 
       const d = new Date();
       const dateTxt = `${d.getDate()} ${d.toLocaleString('en-US', {month:'short'}).toLowerCase()} ${String(d.getFullYear()).slice(-2)}`;
@@ -1082,7 +1083,7 @@
                 'Number of cases found correct and matches the report of ASDD ( prepared during enumeration phase)',
                 'Number of cases contradicting/ Mismatch in the report of ASDD ( prepared during enumeration phase)',
                 'Number of ASDD from whom form-6 obtained']],
-        body: [[1, 24, 'PATEL NAGAR', AC_ASDD_TOTAL, covered, matched, f6, f6]],
+        body: [[1, 24, 'PATEL NAGAR', AC_ASDD_TOTAL, covered, matched, mismatch, f6]],
         styles: { font:'times', fontSize:10, textColor:0, lineColor:0, lineWidth:0.8, cellPadding:{top:2,right:3,bottom:2,left:3}, valign:'top' },
         headStyles: { fillColor:false, fontStyle:'bold', halign:'left', minCellHeight:104 },
         bodyStyles: { fontStyle:'bold', font:'helvetica', fontSize:10.5 },
