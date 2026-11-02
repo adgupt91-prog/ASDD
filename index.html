@@ -330,10 +330,12 @@
   <h3 id="edTitle">Edit</h3>
   <div class="edinfo" id="edInfo"></div>
 
-  <div class="fld"><label>Date(s) of visit by BLO during Enumeration Phase</label>
-    <div class="dates" id="edD1"></div></div>
-  <div class="fld"><label>Date(s) of visit by BLO during Re-verification</label>
-    <div class="dates" id="edD2"></div></div>
+  <div class="fld"><label>Date(s) of visit by BLO during Enumeration Phase <i>*</i></label>
+    <div class="dates" id="edD1"></div>
+    <div class="ferr" data-for="edD1"></div></div>
+  <div class="fld"><label>Date(s) of visit by BLO during Re-verification <i>*</i></label>
+    <div class="dates" id="edD2"></div>
+    <div class="ferr" data-for="edD2"></div></div>
 
   <div class="fld"><label for="edS">Status of ASDD Elector during Re-verification by BLOs (Residing/ASDD) <i>*</i></label>
     <select id="edS"><option value="">-- Select --</option><option>Residing</option><option>ASDD</option></select>
@@ -421,6 +423,8 @@
   // Missing / wrong fields of an answer, keyed by the edit-form field id
   function problems(x){
     const a = norm(x), e = {};
+    if(!a[2]) e.edD1 = 'Add at least one visit date';
+    if(!a[3]) e.edD2 = 'Add at least one visit date';
     if(!a[0]) e.edS = 'Select Residing or ASDD';
     if(a[0]==='Residing'){
       if(!a[4]) e.edR1 = 'Required when Residing';
@@ -520,7 +524,7 @@
       if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
       else{ const needD = rows.filter(r => isSubmitted(r[1]) && !savedComplete(r[1])).length;
-        setMsg(needD ? `${needD} Residing elector(s) need the new details – tap Edit on them, fill and Save.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Tap Edit on an elector to fill the details.', needD ? 'warn' : ''); }
+        setMsg(needD ? `${needD} elector(s) need details (visit dates / Residing details) – tap Edit on them, fill and Save.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Tap Edit on an elector to fill the details.', needD ? 'warn' : ''); }
     }catch(e){ setMsg('Failed to load list: '+e.message,'err'); }
     finally{ $('loader').classList.add('hide'); }
   }
@@ -536,7 +540,7 @@
   function rowTxt(ep){
     if(errEp.has(ep)) return 'Not updated – tap Reload';
     if(dirty.has(ep)) return isComplete(ans[ep]) ? '✎ Not submitted yet' : (ans[ep][0] ? '⚠ Details incomplete' : '✎ Not submitted yet');
-    if(isSubmitted(ep)) return savedComplete(ep) ? '✓ Submitted' : '⚠ Details needed';
+    if(isSubmitted(ep)) return savedComplete(ep) ? '✓ Submitted' : '⚠ Details needed – tap Edit';
     return '';
   }
 
@@ -560,9 +564,9 @@
       <td class="c-name">${esc(name)}</td><td>${lblM('EPIC No.')}${epic}</td>
       <td>${lblM('Relation')}${esc(rt)}</td><td>${lblM('Relation Name')}${esc(rn)}</td>
       <td>${lblM('Part No')}${esc(op)}</td><td>${lblM('Serial No')}${esc(os)}</td>
-      <td class="c-date">${lblM('Visit dates – Enumeration')}${a[2] ? esc(a[2]) : '<span class="ans-none">—</span>'}</td>
+      ${cell(a[2], true, pr.edD1, 'c-date').replace('>', '>' + lblM('Visit dates – Enumeration'))}
       <td class="c-wide">${lblM('Status in ASDD list')}<span class="tag ${tagCls(st)}">${esc(st)}</span></td>
-      <td class="c-date">${lblM('Visit dates – Re-verification')}${a[3] ? esc(a[3]) : '<span class="ans-none">—</span>'}</td>
+      ${cell(a[3], true, pr.edD2, 'c-date').replace('>', '>' + lblM('Visit dates – Re-verification'))}
       <td class="c-wide">${lblM('Status during re-verification')}${stTxt}</td>
       ${cell(a[4], res, pr.edR1).replace('>', '>' + lblM('Reason EF not submitted'))}
       ${cell(a[1], res, pr.edF, 'c-f6').replace('>', '>' + lblM('Form-6 obtained'))}
@@ -693,7 +697,7 @@
     // a date picked but not yet added counts too
     [0,1].forEach(k => { const inp = $(k ? 'edD2' : 'edD1').querySelector('input[type=date]'); if(inp && inp.value) addDate(k); });
     const v = edValue(), err = problems(v);
-    if(Object.keys(err).length){ showErrors(err); const f = document.querySelector('#edForm .fld.bad select, #edForm .fld.bad input, #edForm .fld.bad textarea'); if(f) f.focus(); return; }
+    if(Object.keys(err).length){ showErrors(err); const f = document.querySelector('#edForm .fld.bad'); if(f){ f.scrollIntoView({block:'center'}); const i = f.querySelector('select,input,textarea'); if(i) i.focus({preventScroll:true}); } return; }
     const ep = edEp, keep = ans[ep][NF];
     ans[ep] = pad(norm(v)); ans[ep][NF] = keep; errEp.delete(ep); touch(ep);
     closeEdit(); saveDraft(); redrawRow(ep); updateStats();
@@ -829,7 +833,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-02-3';
+  const APP_VER = '2026-11-02-4';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
@@ -1107,7 +1111,7 @@
       const res = a[0] ? `<span class="${a[0]==='Residing'?'ans-r':'ans-nr'}">${esc(a[0])}</span>` : na;
       const R = a[0]==='Residing', N = R && a[1]==='No';
       return `<tr class="${ok?'done':''}"><td>${r[0]}</td><td class="l">${esc(r[2])}</td><td>${esc(r[1])}</td><td>${esc(r[3])}</td><td class="l">${esc(r[4])}</td><td>${esc(r[6])}</td>
-        <td>${a[2] ? esc(a[2]) : na}</td><td><span class="tag ${tagCls(r[9])}">${esc(r[9])}</span></td><td>${a[3] ? esc(a[3]) : na}</td><td>${res}</td>
+        <td>${v(a[2], d)}</td><td><span class="tag ${tagCls(r[9])}">${esc(r[9])}</span></td><td>${v(a[3], d)}</td><td>${res}</td>
         <td class="rem-cell">${v(a[4], R)}</td><td>${R ? (a[1] ? '<b>' + esc(a[1]) + '</b>' : v('', true)) : na}</td><td class="rem-cell">${v(a[5], N)}</td><td class="rem-cell">${v(a[6], N)}</td><td>${v(a[7], N)}</td></tr>`; }).join('');
     $('psNone').classList.toggle('hide', list.length > 0);
     $('psShown').textContent = `Showing ${list.length} of ${psRows.length}`;
@@ -1124,7 +1128,7 @@
       const list = inScope(blos).slice().sort((a,b) => a.ps - b.ps), body = [];
       let full = 0;
       const add = (b, sn, name, ep, x) => { const a = norm(x), ok = isComplete(a); if(ok) full++;
-        body.push([body.length+1, b.ps, b.blo, Number(sn) || sn, name, ep, a[2] || '-', a[3] || '-', a[4] || 'NOT FILLED', a[1] || 'NOT FILLED',
+        body.push([body.length+1, b.ps, b.blo, Number(sn) || sn, name, ep, a[2] || 'NOT FILLED', a[3] || 'NOT FILLED', a[4] || 'NOT FILLED', a[1] || 'NOT FILLED',
           a[1]==='No' ? (a[5] || 'NOT FILLED') : '-', a[1]==='No' ? (a[6] || 'NOT FILLED') : '-', a[1]==='No' ? (a[7] || 'NOT FILLED') : '-']); };
       // FAST path: one server call returns every Residing elector (Apps Script action "resall")
       $('admMsg').textContent = 'Reading Residing electors…';
