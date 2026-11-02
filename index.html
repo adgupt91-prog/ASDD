@@ -9,7 +9,7 @@
 <title>ASDD Re-verification — AC 24 Patel Nagar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="config.js?v=2026-10-30-1"></script>
+<script src="config.js?v=2026-11-02-1"></script>
 <style>
   :root{
     --blue:#2f5fad; --teal:#1a5f55; --teal-2:#237467; --ink:#1d2433; --muted:#5d6676;
@@ -143,6 +143,62 @@
     #work td textarea.rem{min-width:0;font-size:15px}
     .lbl-m{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
   }
+  /* ---- Template-style controls (Residing/Pending list, EPIC search, Part No., Mark Selected As) ---- */
+  .ctrl{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .ctrl-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:14px 26px}
+  .ctrl label{font-weight:700;font-size:17px;margin-right:6px}
+  .ctrl .ctrl-red{color:#d9534f;font-weight:500;font-size:18px}
+  .ctrl select{font-size:15px;font-weight:600;padding:6px 8px}
+  #bloSel{min-width:260px;max-width:420px}
+  .epicbox{display:inline-flex;gap:8px;align-items:center}
+  .epicbox input{font:inherit;font-size:15px;border:1px solid #9aa5b4;border-radius:4px;padding:7px 10px;width:230px}
+  .btn-epic{font:inherit;font-weight:700;font-size:15px;background:#d4d42a;color:#111;border:1px solid #a9a91e;border-radius:3px;padding:7px 14px;cursor:pointer}
+  .btn-epic:hover{background:#e2e23c}
+  .ctrl-item{display:inline-flex;align-items:center}
+  .selbar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:0 2px 8px;font-size:13px}
+  .selbar label{font-weight:600;display:flex;gap:6px;align-items:center;cursor:pointer}
+  #mainTable th{font-size:12px;line-height:1.25;min-width:70px}
+  #mainTable td{font-size:13px}
+  #mainTable td.c-chk,#mainTable th.c-chk{min-width:34px;width:34px}
+  #mainTable td.c-long{min-width:150px;max-width:220px;white-space:normal;word-break:break-word}
+  #mainTable td.c-date{min-width:96px;font-size:12px}
+  #mainTable td.c-na{color:#9aa5b4}
+  #mainTable td.c-bad{background:#fff1ee;color:var(--err);font-weight:600;font-size:12px}
+  .st-r{font-weight:700;color:var(--done-ink)} .st-a{font-weight:700;color:#8a4b00}
+  .editlink{font:inherit;font-weight:700;color:var(--blue);background:none;border:0;cursor:pointer;text-decoration:underline;padding:4px}
+  .rowmsg{font-size:11px;font-weight:600;margin-top:2px;color:var(--done-ink)}
+  tr.dirty .rowmsg{color:#b26a00} tr.lockerr .rowmsg{color:var(--err)} tr.incomplete .rowmsg{color:var(--err)}
+  tbody tr.sel{outline:2px solid #2f5fad;outline-offset:-2px}
+  /* Edit form */
+  .modal .box.edbox{max-width:560px;max-height:92vh;overflow:auto}
+  .edinfo{font-size:13px;color:var(--muted);margin:-6px 0 12px;line-height:1.45}
+  .edinfo b{color:var(--ink)}
+  .fld{margin-bottom:12px}
+  .fld label{display:block;font-weight:600;font-size:13px;margin-bottom:4px}
+  .fld i{color:var(--err);font-style:normal}
+  .fld.off i.req{display:none}
+  .fld select,.fld input[type=text],.fld input[type=tel],.fld textarea{width:100%;font:inherit;font-size:15px;border:1px solid #9aa5b4;border-radius:6px;padding:8px 10px;background:#fff;color:var(--ink);margin:0}
+  .fld textarea{resize:vertical;min-height:52px}
+  .fld.off label{color:#9aa5b4}
+  .fld select:disabled,.fld input:disabled,.fld textarea:disabled{background:#eef1f4;color:#8a929e;border-color:#c3cad3;cursor:not-allowed}
+  .fld.bad select,.fld.bad input,.fld.bad textarea{border-color:var(--err);background:#fff7f5}
+  .ferr{color:var(--err);font-size:12px;font-weight:600;min-height:0}
+  .dates{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .chip{display:inline-flex;align-items:center;gap:4px;background:#e2e8f8;color:#2b4a8f;border-radius:14px;padding:3px 4px 3px 10px;font-size:13px;font-weight:600}
+  .chip button{border:0;background:#c9d4ef;color:#2b4a8f;border-radius:50%;width:20px;height:20px;line-height:18px;cursor:pointer;font-weight:700;padding:0}
+  .dates input[type=date]{font:inherit;font-size:14px;border:1px solid #9aa5b4;border-radius:6px;padding:5px 8px;margin:0;width:auto}
+  .dates .addd{font:inherit;font-size:13px;font-weight:700;border:1px solid var(--teal);color:var(--teal);background:#fff;border-radius:6px;padding:5px 10px;cursor:pointer}
+  .oldrem{font-size:12px;background:#fff8e6;border:1px solid #f0d58a;border-radius:6px;padding:6px 8px;margin-bottom:10px;color:#6b4e00}
+  @media (max-width: 820px){
+    .ctrl label{font-size:14px} .ctrl .ctrl-red{font-size:15px}
+    .ctrl-row{gap:10px;width:100%} .ctrl-item{width:100%;justify-content:space-between} .ctrl-item select{flex:1;min-width:0;max-width:none}
+    .epicbox{width:100%} .epicbox input{flex:1;width:auto;min-width:0}
+    #work td.c-chk{grid-column:1/-1;padding:0}
+    #work td.c-long,#work td.c-date{max-width:none;min-width:0}
+    #work td.c-wide{grid-column:1/-1}
+    #work td.c-edit{grid-column:1/-1;text-align:right}
+    #work td.c-edit .editlink{font-size:15px;background:var(--teal);color:#fff;text-decoration:none;border-radius:8px;padding:8px 22px}
+  }
 </style>
 </head>
 <body>
@@ -151,9 +207,24 @@
   <h1>Status of Re-verification of ASDD Electors</h1>
   <div id="cfgBanner" class="banner">Setup pending: the Google Sheet link is not set in <code>config.js</code>, so data can't be saved yet.</div>
 
-  <div class="panel" id="selPanel">
-    <label class="lbl" for="bloSel">Select your Part No. / BLO name</label>
-    <select id="bloSel"><option value="">— Select PS No. – BLO Name —</option></select>
+  <div class="ctrl" id="selPanel">
+    <div class="ctrl-row">
+      <label class="ctrl-red" for="fShow">Residing/ Pending List:</label>
+      <select id="fShow">
+        <option value="">-- Select --</option>
+        <option value="Residing">Residing</option>
+        <option value="ASDD">ASDD</option>
+        <option value="pending">Pending</option>
+        <option value="done">Completed</option>
+      </select>
+    </div>
+    <div class="ctrl-row">
+      <span class="epicbox"><input type="search" id="q" placeholder="Enter EPIC No" autocomplete="off"><button class="btn-epic" id="qBtn" type="button">Search By EPIC</button></span>
+      <span class="ctrl-item"><label for="bloSel">Select Part No.:</label>
+        <select id="bloSel"><option value="">-- Select --</option></select></span>
+      <span class="ctrl-item"><label for="markSel">Mark Selected As:</label>
+        <select id="markSel" disabled><option value="">-- Select --</option><option value="ASDD">ASDD</option><option value="Residing">Residing</option></select></span>
+    </div>
     <div class="meta" id="partMeta"></div>
   </div>
 
@@ -163,37 +234,30 @@
       <div class="stat"><div class="k">Completed</div><div class="v" id="sDone">0</div><div class="bar"><i id="sBar"></i></div></div>
       <div class="stat"><div class="k">Pending</div><div class="v" id="sPend">0</div></div>
       <div class="stat"><div class="k">Residing</div><div class="v" id="sRes">0</div></div>
+      <div class="stat"><div class="k">ASDD</div><div class="v" id="sAsdd">0</div></div>
       <div class="stat"><div class="k">Form-6 obtained</div><div class="v" id="sF6">0</div></div>
     </div>
 
     <div class="panel frozenbar hide" id="frozenBar"></div>
 
-    <div class="panel markall">
-      <span class="note">If none of your electors are residing, select them all at once. Form-6 is set to "No" automatically. Check the list, then tap Submit.</span>
-      <button class="btn danger" id="markAllNR" type="button">Mark all Not Residing</button>
-    </div>
-
-    <div class="panel filters">
-      <input type="search" id="q" placeholder="Search name, EPIC no. or serial no.">
-      <select id="fStatus">
-        <option value="">All ASDD statuses</option>
-        <option>Permanently Shifted</option><option>Untraceable/Absent</option>
-        <option>Death</option><option>Already enrolled</option>
-      </select>
-      <select id="fShow">
-        <option value="">Show all</option><option value="pending">Pending only</option><option value="done">Completed only</option>
-      </select>
-      <span class="meta" id="shown" style="margin:0"></span>
-    </div>
+    <div class="selbar"><label><input type="checkbox" id="selAll"> Select all shown</label><span class="meta" id="selCnt" style="margin:0"></span><span class="meta" id="shown" style="margin:0 0 0 auto"></span></div>
 
     <div class="tablewrap">
-      <table>
+      <table id="mainTable">
         <thead><tr>
-          <th>S.N.</th><th>District Name</th><th>AC NO</th><th>AC Name</th><th>Name of the Elector</th><th>Epic No.</th>
-          <th>Relation Type</th><th>Relation Name</th><th>Part No</th><th>Serial No</th><th>Status of Elector in the ASDD List</th>
-          <th>Status of Elector after Re-verification by BLOs (Residing/Not Residing)</th>
-          <th>If found to be eligible for Enrolment, Form-6 Obtained or Not</th>
-          <th>Remarks<br><span style="font-weight:400;font-size:11px">(mandatory for Residing, max 150 characters)</span></th>
+          <th class="c-chk"><input type="checkbox" id="selAllH" title="Select all shown"></th>
+          <th>District Name</th><th>AC NO</th><th>AC Name</th><th>Name of the Elector</th><th>Epic No.</th>
+          <th>Relation Type</th><th>Relation Name</th><th>Part No</th><th>Serial No</th>
+          <th>Date(s) of visit by BLO during Enumeration Phase</th>
+          <th>Status of Elector in the ASDD List</th>
+          <th>Date(s) of visit by BLO during Re-verification</th>
+          <th>Status of ASDD Elector during Re-verification by BLOs (Residing/ASDD)</th>
+          <th>If Found Residing, Reason for not submitting EF during Enumeration Phase</th>
+          <th>If found Residing &amp; eligible for Enrolment, Form-6 Obtained or Not (Yes/No)</th>
+          <th>If found Residing &amp; eligible for Enrolment, but Form-6 Not obtained, Reason thereof</th>
+          <th>If Form-6 Refused, Whether refused by Elector/Relative (Mention Name)</th>
+          <th>If Form-6 Refused, Whether refused by Elector/Relative (Mention Mobile Number)</th>
+          <th>Edit</th>
         </tr></thead>
         <tbody id="tb"></tbody>
       </table>
@@ -214,9 +278,8 @@
     <div class="overall"><div class="lbl"><span id="ovLbl">Overall progress</span><span id="ovPct">0%</span></div><div class="big"><i id="ovBar"></i></div></div>
     <div class="stats" id="admStats"></div>
     <div class="panel filters">
-      <select id="admMode" title="Which progress to show">
+      <select id="admMode" class="hide" title="Which progress to show">
         <option value="">Re-verification progress</option>
-        <option value="rem">Remarks progress</option>
       </select>
       <input type="search" id="admQ" placeholder="Search PS no., BLO or part name">
       <select id="admF"><option value="">All BLOs</option><option value="zero">Not started</option><option value="part">In progress</option><option value="full">Completed 100%</option></select>
@@ -225,13 +288,13 @@
         <option value="desc">Progress: Descending (highest first)</option>
       </select>
       <button class="btn" id="admPdf" type="button" style="background:#b03a2e;padding:8px 16px;font-size:14px">Download PDF</button>
-      <button class="btn" id="admRemPdf" type="button" style="background:#1a5f55;padding:8px 16px;font-size:14px" title="Every Residing elector with Form-6 status and Remarks, PS-wise">All Remarks PDF</button>
+      <button class="btn" id="admRemPdf" type="button" style="background:#1a5f55;padding:8px 16px;font-size:14px" title="Every Residing elector with all re-verification details, PS-wise">All Residing PDF</button>
       <span class="meta" id="admMsg" style="margin:0"></span>
     </div>
     <div class="tablewrap"><table id="admTable">
       <thead id="admHead"><tr>
         <th data-s="ps">PS No</th><th data-s="blo">BLO Name</th><th data-s="part">Part Name</th><th data-s="n">ASDD Total</th>
-        <th data-s="done">Completed</th><th data-s="pct">Progress</th><th data-s="residing">Residing</th><th data-s="notResiding">Not Residing</th><th data-s="f6yes">Form-6 Yes</th><th data-s="f6no">Form-6 No</th>
+        <th data-s="done">Completed</th><th data-s="pct">Progress</th><th data-s="residing">Residing</th><th data-s="notResiding">ASDD</th><th data-s="f6yes">Form-6 Yes</th><th data-s="f6no">Form-6 No</th>
       </tr></thead>
       <tbody id="admTb"></tbody>
     </table></div>
@@ -250,12 +313,14 @@
       <div class="panel filters">
         <input type="search" id="psQ" placeholder="Search name, EPIC or serial no.">
         <select id="psF"><option value="done">Submitted only</option><option value="">All electors</option><option value="pending">Not yet submitted</option></select>
-        <select id="psR"><option value="">Residing + Not Residing</option><option>Residing</option><option>Not Residing</option></select>
+        <select id="psR"><option value="">Residing + ASDD</option><option>Residing</option><option>ASDD</option></select>
         <span class="meta" id="psShown" style="margin:0"></span>
       </div>
       <div class="tablewrap"><table id="psTable">
         <thead><tr><th>S.N.</th><th>Name of the Elector</th><th>Epic No.</th><th>Relation Type</th><th>Relation Name</th><th>Serial No</th>
-          <th>Status of Elector in the ASDD List</th><th>Status after Re-verification (Residing/Not Residing)</th><th>Form-6 Obtained or Not</th><th>Remarks</th></tr></thead>
+          <th>Date(s) of visit – Enumeration</th><th>Status of Elector in the ASDD List</th><th>Date(s) of visit – Re-verification</th>
+          <th>Status during Re-verification (Residing/ASDD)</th><th>Reason for not submitting EF</th><th>Form-6 Obtained (Yes/No)</th>
+          <th>Reason Form-6 not obtained</th><th>Refused by (Name)</th><th>Refused by (Mobile)</th></tr></thead>
         <tbody id="psTb"></tbody>
       </table>
       <div id="psNone" class="empty-msg hide">No entries to show.</div></div>
@@ -264,6 +329,42 @@
 
 </main>
 
+<div class="modal hide" id="edModal"><form class="box edbox" id="edForm" autocomplete="off" novalidate>
+  <h3 id="edTitle">Edit</h3>
+  <div class="edinfo" id="edInfo"></div>
+
+  <div class="fld"><label>Date(s) of visit by BLO during Enumeration Phase</label>
+    <div class="dates" id="edD1"></div></div>
+  <div class="fld"><label>Date(s) of visit by BLO during Re-verification</label>
+    <div class="dates" id="edD2"></div></div>
+
+  <div class="fld"><label for="edS">Status of ASDD Elector during Re-verification by BLOs (Residing/ASDD) <i>*</i></label>
+    <select id="edS"><option value="">-- Select --</option><option>Residing</option><option>ASDD</option></select>
+    <div class="ferr" data-for="edS"></div></div>
+
+  <div class="fld"><label for="edR1">If Found Residing, Reason for not submitting EF during Enumeration Phase <i class="req">*</i></label>
+    <textarea id="edR1" maxlength="200" rows="2"></textarea>
+    <div class="ferr" data-for="edR1"></div></div>
+
+  <div class="fld"><label for="edF">If found Residing &amp; eligible for Enrolment, Form-6 Obtained or Not (Yes/No) <i class="req">*</i></label>
+    <select id="edF"><option value="">-- Select --</option><option>Yes</option><option>No</option></select>
+    <div class="ferr" data-for="edF"></div></div>
+
+  <div class="fld"><label for="edR2">If found Residing &amp; eligible for Enrolment, but Form-6 Not obtained, Reason thereof <i class="req">*</i></label>
+    <textarea id="edR2" maxlength="200" rows="2"></textarea>
+    <div class="ferr" data-for="edR2"></div></div>
+
+  <div class="fld"><label for="edN">If Form-6 Refused, Whether refused by Elector/Relative (Mention Name) <i class="req">*</i></label>
+    <input type="text" id="edN" maxlength="100">
+    <div class="ferr" data-for="edN"></div></div>
+
+  <div class="fld"><label for="edM">If Form-6 Refused, Whether refused by Elector/Relative (Mention Mobile Number) <i class="req">*</i></label>
+    <input type="tel" id="edM" maxlength="10" inputmode="numeric" placeholder="10-digit mobile number">
+    <div class="ferr" data-for="edM"></div></div>
+
+  <div class="oldrem hide" id="edOld"></div>
+  <div class="row"><button class="btn ghost" type="button" id="edCancel">Cancel</button><button class="btn" type="submit" id="edSave">Save</button></div>
+</form></div>
 <div class="modal hide" id="aeroModal"><form class="box" id="aeroForm" autocomplete="off">
   <h3>AERO Login</h3>
   <select id="aeroSel"><option value="">— Select your name —</option></select>
@@ -288,8 +389,15 @@
   if(!hasBackend) document.getElementById('cfgBanner').style.display='block';
 
   const $ = id => document.getElementById(id);
-  const RES = ['Residing','Not Residing'], F6 = ['Yes','No'];
+  // One elector's answer:
+  //  0 Status during re-verification (Residing / ASDD)       1 Form-6 obtained (Yes / No)
+  //  2 Date(s) of visit – Enumeration phase                  3 Date(s) of visit – Re-verification
+  //  4 If Residing: reason for not submitting EF             5 If Form-6 No: reason thereof
+  //  6 If Form-6 refused: refused by (name)                  7 If Form-6 refused: refused by (mobile)
+  //  8 old Remarks from the earlier version (read-only, shown as a hint)
+  const NF = 8;
   let blos = [], cur = null, rows = [], ans = {}, saved = {}, dirty = new Set(), busy = false, errEp = new Set();
+  let selected = new Set(), shownEps = [];
 
   const store = {
     get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } },
@@ -298,25 +406,38 @@
   };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const tagCls = s => s==='Permanently Shifted'?'t-ps':s==='Untraceable/Absent'?'t-ua':s==='Death'?'t-d':'t-ae';
-  const opts = (list, v) => '<option value="">-- Select --</option>' + list.map(o => `<option${o===v?' selected':''}>${o}</option>`).join('');
-  // Form-6 dropdown depends on residing status: "Not Residing" => frozen "No"
-  const f6Opts = a => a[0]==='Not Residing' ? '<option selected>No</option>' : opts(F6, a[1]);
-  const f6Attr = a => a[0]==='Not Residing' ? 'class="frozen" disabled title="Not Residing – Form-6 is automatically No"' : `class="${a[1]?'':'empty'}"`;
-  const detKind = () => null;
-  // Remarks (3rd value, stored in the sheet's old Ref/Reason slot): disabled for Not Residing,
-  // mandatory for Residing (Form-6 Yes or No), at most REM_MAX characters. Hint: Form-6 Yes -> Reference Number, No -> Reason.
-  const REM_MAX = 150;
-  const remLen = v => String(v||'').trim().length;
-  const remOk = a => a[0]!=='Residing' || (remLen(a[2]) >= 1 && remLen(a[2]) <= REM_MAX);
-  const remHint = a => a[1]==='Yes' ? 'Reference Number' : a[1]==='No' ? 'Reason' : 'Reference Number (Form-6 Yes) / Reason (Form-6 No)';
-  const isComplete = a => !!(a && a[0] && a[1] && remOk(a));
-  const norm = a => [a[0]||'', a[1]||'', a[0]==='Residing' ? String(a[2]||'').trim() : ''];
-  const remCnt = a => { const n = remLen(a[2]); return a[0]==='Not Residing' ? '' :
-    `<div class="remcnt${!n || n>REM_MAX?' bad':''}"><span class="hint">${remHint(a)}</span> · ${n ? n + ' / ' + REM_MAX + ' characters' : 'Required'}</div>`; };
-  const remCell = a => { const nr = a[0]==='Not Residing';
-    return `<textarea class="rem${!nr && !remLen(a[2])?' need':''}" data-k="2" maxlength="${REM_MAX}" ${nr?'disabled title="Not Residing – Remarks not required"':''}
-      placeholder="${nr?'Not required for Not Residing':remHint(a)+' (required, max '+REM_MAX+' characters)'}">${nr?'':esc(a[2]||'')}</textarea>${remCnt(a)}`; };
   const setMsg = (t, cls) => { const m=$('msg'); m.textContent=t; m.className=cls||''; };
+
+  const blank = () => Array(NF + 1).fill('');
+  // Any stored/drafted answer -> 9 strings. Old "Not Residing" is now "ASDD".
+  const pad = x => { const a = blank(); (x||[]).forEach((v,i) => { if(i <= NF) a[i] = v == null ? '' : String(v); });
+    if(a[0]==='Not Residing') a[0] = 'ASDD'; return a; };
+  // The 8 answer values exactly as they will be saved (fields that do not apply are emptied)
+  function norm(x){
+    const a = pad(x).slice(0, NF).map(v => String(v).trim());
+    if(a[0]==='ASDD'){ a[1]=a[4]=a[5]=a[6]=a[7]=''; }                    // ASDD: only the dates are kept
+    else if(a[0]==='Residing' && a[1]==='Yes'){ a[5]=a[6]=a[7]=''; }      // Form-6 obtained: no refusal details
+    else if(!a[0]){ a[1]=a[4]=a[5]=a[6]=a[7]=''; }
+    return a;
+  }
+  const MOB_RE = /^[6-9]\d{9}$/;
+  // Missing / wrong fields of an answer, keyed by the edit-form field id
+  function problems(x){
+    const a = norm(x), e = {};
+    if(!a[0]) e.edS = 'Select Residing or ASDD';
+    if(a[0]==='Residing'){
+      if(!a[4]) e.edR1 = 'Required when Residing';
+      if(!a[1]) e.edF = 'Select Yes or No';
+      if(a[1]==='No'){
+        if(!a[5]) e.edR2 = 'Required when Form-6 is No';
+        if(!a[6]) e.edN = 'Required when Form-6 is No';
+        if(!MOB_RE.test(a[7])) e.edM = a[7] ? 'Enter a valid 10-digit mobile number' : 'Required when Form-6 is No';
+      }
+    }
+    return e;
+  }
+  const isComplete = a => !!a && !Object.keys(problems(a)).length;
+  const sameAns = (x, y) => { const a = norm(x), b = norm(y); return a.every((v,i) => v === b[i]); };
 
   async function getJSON(u){ const r = await fetch(u, {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -339,7 +460,6 @@
   }
   const backendGet = (u, onRetry) => backend(null, onRetry, u);
 
-  // Copy of data/blos.json built into the page – used if the file can't be downloaded (slow / patchy mobile data)
   const BLOS_FALLBACK = [{"ps":1,"blo":"KHUSHBOO","part":"PREM NAGAR","n":478},{"ps":2,"blo":"KALLU","part":"PREM NAGAR","n":637},{"ps":3,"blo":"SARDAR","part":"PREM NAGAR","n":719},{"ps":4,"blo":"RAJENDRA","part":"PREM NAGAR","n":563},{"ps":5,"blo":"BHISHAM","part":"PREM NAGAR","n":588},{"ps":6,"blo":"ROHIT","part":"PREM NAGAR","n":512},{"ps":7,"blo":"MAHESH","part":"PREM NAGAR","n":576},{"ps":8,"blo":"AMANDEEP","part":"PREM NAGAR","n":526},{"ps":9,"blo":"VINOD","part":"PREM NAGAR","n":595},{"ps":10,"blo":"USHA","part":"PREM NAGAR","n":710},{"ps":11,"blo":"KALPANA","part":"PREM NAGAR","n":614},{"ps":12,"blo":"PRITOSH","part":"PREM NAGAR","n":648},{"ps":13,"blo":"JITENDRA","part":"PREM NAGAR","n":657},{"ps":14,"blo":"AARTI","part":"PREM NAGAR","n":485},{"ps":15,"blo":"OM","part":"PREM NAGAR","n":611},{"ps":16,"blo":"JASWANT","part":"PREM NAGAR","n":502},{"ps":17,"blo":"AMIT","part":"PREM NAGAR","n":627},{"ps":18,"blo":"PRADEEP","part":"NEHRU NAGAR","n":478},{"ps":19,"blo":"SUMER","part":"NEHRU NAGAR","n":541},{"ps":20,"blo":"NAVEEN","part":"NEHRU NAGAR","n":519},{"ps":21,"blo":"SACHIN","part":"NEHRU NAGAR","n":488},{"ps":22,"blo":"KALU","part":"NEHRU NAGAR","n":540},{"ps":23,"blo":"MALKESH","part":"NEHRU NAGAR","n":561},{"ps":24,"blo":"BHARTI","part":"NEHRU NAGAR","n":543},{"ps":25,"blo":"LALCHAND","part":"NEHRU NAGAR","n":461},{"ps":26,"blo":"MEENAKSHI","part":"NEHRU NAGAR","n":465},{"ps":27,"blo":"SAPNA","part":"ANAND PARBAT THAN SINGH NAGAR","n":300},{"ps":28,"blo":"RITA","part":"ANAND PARBAT THAN SINGH NAGAR","n":438},{"ps":29,"blo":"SUMAN","part":"ANAND PARBAT THAN SINGH NAGAR","n":195},{"ps":30,"blo":"BHAGIRATH","part":"ANAND PARBAT THAN SINGH NAGAR","n":383},{"ps":31,"blo":"POOJA","part":"ANAND PARBAT THAN SINGH NAGAR","n":372},{"ps":32,"blo":"RAJEEV","part":"ANAND PARBAT THAN SINGH NAGAR","n":369},{"ps":33,"blo":"KRISHNA","part":"ANAND PARBAT THAN SINGH NAGAR","n":297},{"ps":34,"blo":"RAMESH","part":"ANAND PARBAT THAN SINGH NAGAR","n":249},{"ps":35,"blo":"FARIDA","part":"ANAND PARBAT THAN SINGH NAGAR","n":275},{"ps":36,"blo":"MAHENDAR","part":"ANAND PARBAT THAN SINGH NAGAR","n":453},{"ps":37,"blo":"PUSHPA","part":"ANAND PARBAT THAN SINGH NAGAR","n":202},{"ps":38,"blo":"SUNIL","part":"ANAND PARBAT THAN SINGH NAGAR","n":311},{"ps":39,"blo":"RAJVIR","part":"ANAND PARBAT THAN SINGH NAGAR","n":164},{"ps":40,"blo":"RAKESH","part":"ANAND PARBAT THAN SINGH NAGAR","n":381},{"ps":41,"blo":"KAMAL","part":"ANAND PARBAT THAN SINGH NAGAR","n":351},{"ps":42,"blo":"MADHU","part":"ANAND PARBAT THAN SINGH NAGAR","n":273},{"ps":43,"blo":"SIDDHI","part":"ANAND PARBAT THAN SINGH NAGAR","n":335},{"ps":44,"blo":"JITENDRA","part":"BALJEET NAGAR","n":291},{"ps":45,"blo":"JYOTI","part":"BALJEET NAGAR","n":485},{"ps":46,"blo":"VIKAS","part":"BALJEET NAGAR","n":436},{"ps":47,"blo":"AKUL","part":"BALJEET NAGAR","n":565},{"ps":48,"blo":"SANJAY","part":"BALJEET NAGAR","n":330},{"ps":49,"blo":"MANJU","part":"BALJEET NAGAR","n":472},{"ps":50,"blo":"SUNIL","part":"BALJEET NAGAR","n":513},{"ps":51,"blo":"MANOJ","part":"BALJEET NAGAR","n":330},{"ps":52,"blo":"HUKAM","part":"BALJEET NAGAR","n":318},{"ps":53,"blo":"JUHI","part":"BALJEET NAGAR","n":434},{"ps":54,"blo":"KAMAL","part":"BALJEET NAGAR","n":384},{"ps":55,"blo":"RAJESH","part":"BALJEET NAGAR","n":415},{"ps":56,"blo":"MANOJ","part":"BALJEET NAGAR","n":384},{"ps":57,"blo":"ASHWANI","part":"BALJEET NAGAR","n":451},{"ps":58,"blo":"SAVITA","part":"BALJEET NAGAR","n":502},{"ps":59,"blo":"RAM","part":"BALJEET NAGAR","n":417},{"ps":60,"blo":"SARITA","part":"BALJEET NAGAR","n":544},{"ps":61,"blo":"PINKI","part":"BALJEET NAGAR","n":420},{"ps":62,"blo":"PRASHANT","part":"BALJEET NAGAR","n":581},{"ps":63,"blo":"AMIT","part":"BALJEET NAGAR","n":489},{"ps":64,"blo":"SURENDRA","part":"BALJEET NAGAR","n":637},{"ps":65,"blo":"ANJALI","part":"BALJEET NAGAR","n":484},{"ps":66,"blo":"YASHPAL","part":"BALJEET NAGAR","n":517},{"ps":67,"blo":"MANINDER","part":"BALJEET NAGAR","n":483},{"ps":68,"blo":"SURESH","part":"BALJEET NAGAR","n":508},{"ps":69,"blo":"NEERAJ","part":"BALJEET NAGAR","n":581},{"ps":70,"blo":"ANJALI","part":"BALJEET NAGAR","n":489},{"ps":71,"blo":"HITENDER","part":"BALJEET NAGAR","n":502},{"ps":72,"blo":"MAHENDRA","part":"BALJEET NAGAR","n":568},{"ps":73,"blo":"DEEPCHANDRA","part":"BALJEET NAGAR","n":493},{"ps":74,"blo":"SANJIV","part":"BALJEET NAGAR","n":518},{"ps":75,"blo":"VIKAS","part":"BALJEET NAGAR","n":780},{"ps":76,"blo":"AMAN","part":"BALJEET NAGAR","n":361},{"ps":77,"blo":"LEELA","part":"BALJEET NAGAR","n":616},{"ps":78,"blo":"CHIRAG","part":"BALJEET NAGAR","n":543},{"ps":79,"blo":"ANIL","part":"BALJEET NAGAR","n":432},{"ps":80,"blo":"CHANDAN","part":"BALJEET NAGAR","n":452},{"ps":81,"blo":"AARTI","part":"BALJEET NAGAR","n":411},{"ps":82,"blo":"KULDEEP","part":"BALJEET NAGAR","n":472},{"ps":83,"blo":"MADHU","part":"BALJEET NAGAR","n":517},{"ps":84,"blo":"DHARMENDER","part":"BALJEET NAGAR","n":585},{"ps":85,"blo":"LAXMI","part":"BALJEET NAGAR","n":501},{"ps":86,"blo":"KAMAL","part":"BALJEET NAGAR","n":412},{"ps":87,"blo":"NEHA","part":"BALJEET NAGAR","n":459},{"ps":88,"blo":"USHA","part":"BALJEET NAGAR","n":498},{"ps":89,"blo":"RAJENDRA","part":"BALJEET NAGAR","n":589},{"ps":90,"blo":"SATYA","part":"BALJEET NAGAR","n":485},{"ps":91,"blo":"DHARMNATH","part":"BALJEET NAGAR","n":586},{"ps":92,"blo":"ABHISHEK","part":"BALJEET NAGAR","n":636},{"ps":93,"blo":"MAUSAM","part":"BALJEET NAGAR","n":595},{"ps":94,"blo":"DEV","part":"BALJEET NAGAR","n":586},{"ps":95,"blo":"KISHOR","part":"BALJEET NAGAR","n":508},{"ps":96,"blo":"USHA","part":"BALJEET NAGAR","n":509},{"ps":97,"blo":"RAVINDER","part":"BALJEET NAGAR","n":644},{"ps":98,"blo":"SHRIPAL","part":"BALJEET NAGAR","n":590},{"ps":99,"blo":"DEEPAK","part":"BALJEET NAGAR","n":666},{"ps":100,"blo":"PRADEEP","part":"BALJEET NAGAR","n":440},{"ps":101,"blo":"KULDEEP","part":"BALJEET NAGAR","n":619},{"ps":102,"blo":"SUSHIL","part":"BALJEET NAGAR","n":583},{"ps":103,"blo":"RAMHET","part":"BALJEET NAGAR","n":655},{"ps":104,"blo":"MUKESH","part":"BALJEET NAGAR","n":612},{"ps":105,"blo":"VISHNU","part":"BALJEET NAGAR","n":598},{"ps":106,"blo":"JAGDISH","part":"BALJEET NAGAR","n":557},{"ps":107,"blo":"SWATI","part":"WEST PATEL NAGAR","n":451},{"ps":108,"blo":"SAPNA","part":"WEST PATEL NAGAR","n":388},{"ps":109,"blo":"KAVITA","part":"WEST PATEL NAGAR","n":214},{"ps":110,"blo":"GEETA","part":"WEST PATEL NAGAR","n":343},{"ps":111,"blo":"NOOR","part":"WEST PATEL NAGAR","n":336},{"ps":112,"blo":"NISHI","part":"WEST PATEL NAGAR","n":283},{"ps":113,"blo":"ANUBHUTI","part":"WEST PATEL NAGAR","n":439},{"ps":114,"blo":"MONICA","part":"WEST PATEL NAGAR","n":373},{"ps":115,"blo":"KANIKA","part":"WEST PATEL NAGAR","n":343},{"ps":116,"blo":"TAJENDER","part":"WEST PATEL NAGAR","n":408},{"ps":117,"blo":"JASVINDER","part":"WEST PATEL NAGAR","n":227},{"ps":118,"blo":"SHILPA","part":"WEST PATEL NAGAR","n":302},{"ps":119,"blo":"SUNITA","part":"WEST PATEL NAGAR","n":305},{"ps":120,"blo":"ANJU","part":"WEST PATEL NAGAR","n":296},{"ps":121,"blo":"MANMEET","part":"WEST PATEL NAGAR","n":304},{"ps":122,"blo":"HEMRAJ","part":"WEST PATEL NAGAR","n":314},{"ps":123,"blo":"AARTI","part":"WEST PATEL NAGAR","n":357},{"ps":124,"blo":"ANIL","part":"WEST PATEL NAGAR","n":110},{"ps":125,"blo":"GURWINDER","part":"WEST PATEL NAGAR","n":152},{"ps":126,"blo":"MANISHA","part":"WEST PATEL NAGAR","n":234},{"ps":127,"blo":"ANUBHA","part":"WEST PATEL NAGAR","n":244},{"ps":128,"blo":"PUNEETA","part":"WEST PATEL NAGAR","n":390},{"ps":129,"blo":"KAMLESH","part":"WEST PATEL NAGAR","n":405},{"ps":130,"blo":"SAROJ","part":"WEST PATEL NAGAR","n":190},{"ps":131,"blo":"NARESH","part":"WEST PATEL NAGAR","n":375},{"ps":132,"blo":"AJAI","part":"WEST PATEL NAGAR","n":362},{"ps":133,"blo":"MAHESH","part":"WEST PATEL NAGAR","n":390},{"ps":134,"blo":"KHUSHI","part":"WEST PATEL NAGAR","n":580},{"ps":135,"blo":"PANKAJ","part":"WEST PATEL NAGAR","n":466},{"ps":136,"blo":"ANITA","part":"WEST PATEL NAGAR","n":354},{"ps":137,"blo":"SURAJ","part":"WEST PATEL NAGAR","n":429},{"ps":138,"blo":"MAMTA","part":"WEST PATEL NAGAR","n":447},{"ps":139,"blo":"MUKUL","part":"WEST PATEL NAGAR","n":330},{"ps":140,"blo":"KARAN","part":"WEST PATEL NAGAR","n":400},{"ps":141,"blo":"SHAKUNTLA","part":"WEST PATEL NAGAR","n":458},{"ps":142,"blo":"SUNIL","part":"WEST PATEL NAGAR","n":484},{"ps":143,"blo":"ANIL","part":"WEST PATEL NAGAR","n":442},{"ps":144,"blo":"ASHISH","part":"EAST PATEL NAGAR","n":316},{"ps":145,"blo":"ROSHAN","part":"EAST PATEL NAGAR","n":306},{"ps":146,"blo":"SURAJ","part":"EAST PATEL NAGAR","n":124},{"ps":147,"blo":"MRATYUNJAY","part":"EAST PATEL NAGAR","n":462},{"ps":148,"blo":"MANMOHAN","part":"EAST PATEL NAGAR","n":421},{"ps":149,"blo":"NIKITA","part":"EAST PATEL NAGAR","n":228},{"ps":150,"blo":"KAVITA","part":"EAST PATEL NAGAR","n":289},{"ps":151,"blo":"NEERU","part":"PARSAD NAGAR","n":296},{"ps":152,"blo":"SHEKINA","part":"PARSAD NAGAR","n":114},{"ps":153,"blo":"SHIKHA","part":"NEW RANJIT NAGAR","n":299},{"ps":154,"blo":"BRAHM","part":"NEW RANJIT NAGAR","n":415},{"ps":155,"blo":"DEEPESH","part":"NEW RANJIT NAGAR (DDA FLATS)","n":322},{"ps":156,"blo":"SHARWAN","part":"NEW RANJIT NAGAR (DDA FLATS)","n":334},{"ps":157,"blo":"ARVIND","part":"NEW RANJIT NAGAR","n":293},{"ps":158,"blo":"RAJU","part":"NEW RANJIT NAGAR","n":213},{"ps":159,"blo":"ANJU","part":"DTC COLONY PATEL NAGAR","n":419},{"ps":160,"blo":"SEEMA","part":"DTC COLONY PATEL NAGAR","n":250},{"ps":161,"blo":"HUKAMCHAND","part":"NEW RANJIT NAGAR","n":213},{"ps":162,"blo":"RUSAVA","part":"NEW RANJIT NAGAR (DDA FLATS)","n":224},{"ps":163,"blo":"SANGEETA","part":"NEW RANJIT NAGAR","n":195},{"ps":164,"blo":"SWAPAN","part":"NEW RANJIT NAGAR","n":503},{"ps":165,"blo":"NIYAZ","part":"NEW RANJIT NAGAR (DDA FLATS)","n":258},{"ps":166,"blo":"SUNITA","part":"NEW RANJIT NAGAR (DDA FLATS)","n":176},{"ps":167,"blo":"HARPREET","part":"NEW RANJIT NAGAR","n":248},{"ps":168,"blo":"SULEKHA","part":"NEW RANJIT NAGAR","n":224},{"ps":169,"blo":"SAROJ","part":"SHADI KHAMPUR","n":444},{"ps":170,"blo":"ASHA","part":"SHADI KHAMPUR","n":330},{"ps":171,"blo":"SUNITA","part":"SHADI KHAMPUR","n":428},{"ps":172,"blo":"PUSHPENDER","part":"SHADI KHAMPUR","n":436},{"ps":173,"blo":"ANNU","part":"SHADI KHAMPUR","n":166},{"ps":174,"blo":"INDER","part":"SHADIPUR","n":363},{"ps":175,"blo":"ANUP","part":"SHADIPUR","n":294},{"ps":176,"blo":"NEHA","part":"SHADIPUR","n":285},{"ps":177,"blo":"RACHNA","part":"SHADIPUR","n":659},{"ps":178,"blo":"PRABHJOT","part":"SHADIPUR","n":563},{"ps":179,"blo":"NAVRINDER","part":"SHADIPUR","n":319},{"ps":180,"blo":"OMWATI","part":"SOUTH PATEL NAGAR","n":456},{"ps":181,"blo":"MADHO","part":"SOUTH PATEL NAGAR","n":250},{"ps":182,"blo":"DAVINDERJIT","part":"SHADI KHAMPUR","n":404},{"ps":183,"blo":"ANUBHA","part":"SHADI KHAMPUR","n":279},{"ps":184,"blo":"SANGITA","part":"SHADI KHAMPUR","n":259},{"ps":185,"blo":"INDERJEET","part":"SHADI KHAMPUR","n":334},{"ps":186,"blo":"MAMTA","part":"RANJEET NAGAR","n":177},{"ps":187,"blo":"ROSHAN","part":"RANJEET NAGAR","n":420},{"ps":188,"blo":"MEENU","part":"SHADI KHAMPUR","n":339},{"ps":189,"blo":"URMILA","part":"SHADI KHAMPUR","n":621},{"ps":190,"blo":"ANKIT","part":"OLD RANJIT NAGAR","n":423}];
   async function getJSONRetry(u, tries = 3){
     for(let i = 0; ; i++){
@@ -352,23 +472,23 @@
   }
   async function init(){
     const first = $('bloSel').options[0], firstTxt = first.textContent;
-    first.textContent = 'Loading BLO list…';
+    first.textContent = 'Loading…';
     try{ blos = await getJSONRetry('data/blos.json'); if(!Array.isArray(blos) || !blos.length) throw new Error('empty list'); }
     catch(e){ console.warn('blos.json failed, using built-in list:', e); blos = BLOS_FALLBACK; }
     first.textContent = firstTxt;
     $('bloSel').insertAdjacentHTML('beforeend', blos.map(b =>
-      `<option value="${b.ps}">PS-${b.ps} – ${esc(b.blo)} (${esc(b.part)})</option>`).join(''));
+      `<option value="${b.ps}">${b.ps} – ${esc(b.blo)} (${esc(b.part)})</option>`).join(''));
     const fromUrl = new URLSearchParams(location.search).get('ps');
     const last = fromUrl || store.get('asdd_last_ps');
     if(last && blos.some(b => String(b.ps)===String(last))){ $('bloSel').value = String(last); loadPS(); }
   }
 
   async function loadPS(){
-    if(dirty.size && !confirm('You have unsaved changes. Switch BLO anyway? (They stay saved on this device as a draft.)')){
+    if(dirty.size && !confirm('You have unsaved changes. Switch Part No. anyway? (They stay saved on this device as a draft.)')){
       $('bloSel').value = cur ? String(cur.ps) : ''; return;
     }
     const ps = $('bloSel').value;
-    if(!ps){ $('work').classList.add('hide'); $('savebar').style.display='none'; $('partMeta').textContent=''; cur=null; return; }
+    if(!ps){ $('work').classList.add('hide'); $('savebar').style.display='none'; $('partMeta').textContent=''; cur=null; $('markSel').disabled = true; return; }
     cur = blos.find(b => String(b.ps)===ps);
     store.set('asdd_last_ps', ps);
     $('partMeta').textContent = `Part No. ${cur.ps} – ${cur.part} · BLO: ${cur.blo} · ${cur.n} electors in ASDD list`;
@@ -382,190 +502,275 @@
       ]);
       if(cur.ps !== Number(ps)) return;
       rows = data;
-      saved = (sv && sv.ok && sv.data) ? sv.data : {};
+      saved = {};
+      const raw = (sv && sv.ok && sv.data) ? sv.data : {};
+      for(const ep in raw) saved[ep] = pad(raw[ep]);
       psFrozen = null;   // Freeze feature removed – every PS stays editable
-      ans = {}; dirty = new Set(); errEp = new Set();
-      for(const r of rows){ const s = saved[r[1]]; ans[r[1]] = s ? [s[0]||'', s[1]||'', s[2]||''] : ['','','']; }
+      ans = {}; dirty = new Set(); errEp = new Set(); selected = new Set();
+      for(const r of rows){ ans[r[1]] = saved[r[1]] ? pad(saved[r[1]]) : blank(); }
       // restore unsaved draft from this device
-      if(psFrozen){ store.del('asdd_draft_'+ps); store.del('asdd_unconfirmed_'+ps); }
-      const draft = psFrozen ? {} : (store.get('asdd_draft_'+ps) || {});
-      for(const ep in draft){ if(ans[ep] && !isLocked(ep)){ ans[ep] = [draft[ep][0]||'', draft[ep][1]||'', draft[ep][2]||'']; if(ans[ep][0]==='Not Residing'){ ans[ep][1]='No'; ans[ep][2]=''; } if(isChanged(ep)) dirty.add(ep); } }
+      const draft = store.get('asdd_draft_'+ps) || {};
+      for(const ep in draft){ if(ans[ep]){ const old = ans[ep][NF]; ans[ep] = pad(draft[ep]); ans[ep][NF] = old; if(isChanged(ep)) dirty.add(ep); } }
       const unconf = store.get('asdd_unconfirmed_'+ps);
       if(unconf && sv && sv.ok){
-        const tr = {}; for(const ep in unconf) tr[ep] = saved[ep] && saved[ep][0] && saved[ep][1] ? saved[ep] : undefined;
+        const tr = {}; for(const ep in unconf) tr[ep] = isSubmitted(ep) ? saved[ep] : undefined;
         const r = applyTruth(unconf, tr); store.del('asdd_unconfirmed_'+ps); saveDraft();
         render(); updateStats();
         setMsg('Result of your last unconfirmed submit: ' + resultMsg(r, 0), (r.failed || r.taken) ? 'err' : 'ok');
         return;
       }
       render(); updateStats();
-      if(psFrozen) flagLocked();
-      else if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
+      if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
-      else{ const needRem = rows.filter(r => isSubmitted(r[1]) && !savedComplete(r[1])).length;
-        setMsg(needRem ? `${needRem} Residing elector(s) need Remarks (Reference Number / Reason) – fill them and tap Submit.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Fill both dropdowns for each elector (and Remarks for Residing), then tap Submit.', needRem ? 'warn' : ''); }
+      else{ const needD = rows.filter(r => isSubmitted(r[1]) && !savedComplete(r[1])).length;
+        setMsg(needD ? `${needD} Residing elector(s) need the new details – tap Edit on them, fill and Save.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Tap Edit on an elector to fill the details, or tick electors and use "Mark Selected As".', needD ? 'warn' : ''); }
     }catch(e){ setMsg('Failed to load list: '+e.message,'err'); }
-    finally{ $('loader').classList.add('hide'); }
+    finally{ $('loader').classList.add('hide'); $('markSel').disabled = !cur; }
   }
 
-  // Submitted entries can be edited by the BLO (re-submitting overwrites the row in the sheet)
-  // until the BLO taps Freeze. After freezing, nothing on this PS can be changed.
-  let psFrozen = null;                       // null, or {at, by} when this PS is frozen
-  const isSubmitted = ep => !!(saved[ep] && saved[ep][0] && saved[ep][1]);
+  // Freeze was removed (30 Oct) – every PS stays editable. Kept as null so older code paths stay harmless.
+  let psFrozen = null;
+  const isSubmitted = ep => !!(saved[ep] && saved[ep][0]);
   const isLocked = () => !!psFrozen;
-  const LOCK_OK = '✓ Submitted', LOCK_EDIT = '✎ Edited – tap Submit to update', LOCK_ERR = 'Not updated – tap Reload';
-  const LOCK_REM = '⚠ Remarks needed – fill & Submit again';
-  const lockTxt = ep => errEp.has(ep) ? LOCK_ERR : dirty.has(ep) ? LOCK_EDIT : savedComplete(ep) ? LOCK_OK : LOCK_REM;
-  function flagLocked(){ setMsg(`🔒 Entries are frozen${psFrozen && psFrozen.at ? ' (since ' + psFrozen.at + ')' : ''} – they cannot be changed.`,'err'); }
-  function showFrozen(){
-    const fb = $('frozenBar');
-    fb.classList.toggle('hide', !psFrozen);
-    if(psFrozen) fb.innerHTML = `🔒 Entries of PS-${cur.ps} are FROZEN${psFrozen.at ? ' on ' + esc(psFrozen.at) : ''}.`
-      + `<div class="sub">No further changes can be made. Contact the ERO office if a correction is needed.</div>`;
-    $('freeze').textContent = psFrozen ? '🔒 Frozen' : '🔒 Freeze';
-  }
-  function isChanged(ep){ const s = norm(saved[ep] || ['','','']), a = norm(ans[ep]); return a[0]!==s[0] || a[1]!==s[1] || a[2]!==s[2]; }
+  function flagLocked(){ setMsg('🔒 Entries are frozen – they cannot be changed.','err'); }
+  function showFrozen(){ $('frozenBar').classList.add('hide'); }
+  function isChanged(ep){ return !sameAns(saved[ep] || blank(), ans[ep]); }
   const savedComplete = ep => isComplete(saved[ep]);
+  function rowTxt(ep){
+    if(errEp.has(ep)) return 'Not updated – tap Reload';
+    if(dirty.has(ep)) return isComplete(ans[ep]) ? '✎ Not submitted yet' : (ans[ep][0] ? '⚠ Details incomplete' : '✎ Not submitted yet');
+    if(isSubmitted(ep)) return savedComplete(ep) ? '✓ Submitted' : '⚠ Details needed';
+    return '';
+  }
 
+  // Cell helpers: "—" for a field that does not apply; red "Required" for a missing mandatory one
+  const cellNA = '<td class="c-long c-na">—</td>';
+  function cell(v, applies, missing, cls){
+    if(!applies) return `<td class="${cls||'c-long'} c-na">—</td>`;
+    if(missing) return `<td class="${cls||'c-long'} c-bad">Required</td>`;
+    return `<td class="${cls||'c-long'}">${v ? esc(v) : '<span class="ans-none">—</span>'}</td>`;
+  }
+  const lblM = t => `<span class="lbl-m">${t}</span>`;
+  function rowHtml(r){
+    const [sn, epic, name, rt, rn, op, os, , , st] = r;
+    const a = norm(ans[epic]), done = isComplete(ans[epic]), pr = a[0] ? problems(ans[epic]) : {};
+    const res = a[0]==='Residing', no = res && a[1]==='No';
+    const stTxt = a[0] ? `<span class="${res?'st-r':'st-a'}">${a[0]}</span>` : '<span class="ans-none">—</span>';
+    const tx = rowTxt(epic);
+    const cls = [done?'done':'', dirty.has(epic)?'dirty':'', errEp.has(epic)?'lockerr':'', a[0] && !done ? 'incomplete' : '', selected.has(epic)?'sel':''].join(' ');
+    return `<tr data-ep="${epic}" class="${cls}">
+      <td class="c-chk"><input type="checkbox" class="rchk" ${selected.has(epic)?'checked':''} aria-label="Select ${esc(name)}"></td>
+      <td class="c-dist">CENTRAL</td><td class="c-acno">24</td><td class="c-acname">PATEL NAGAR</td>
+      <td class="c-name">${esc(name)}</td><td>${lblM('EPIC No.')}${epic}</td>
+      <td>${lblM('Relation')}${esc(rt)}</td><td>${lblM('Relation Name')}${esc(rn)}</td>
+      <td>${lblM('Part No')}${esc(op)}</td><td>${lblM('Serial No')}${esc(os)}</td>
+      <td class="c-date">${lblM('Visit dates – Enumeration')}${a[2] ? esc(a[2]) : '<span class="ans-none">—</span>'}</td>
+      <td class="c-wide">${lblM('Status in ASDD list')}<span class="tag ${tagCls(st)}">${esc(st)}</span></td>
+      <td class="c-date">${lblM('Visit dates – Re-verification')}${a[3] ? esc(a[3]) : '<span class="ans-none">—</span>'}</td>
+      <td class="c-wide">${lblM('Status during re-verification')}${stTxt}</td>
+      ${cell(a[4], res, pr.edR1).replace('>', '>' + lblM('Reason EF not submitted'))}
+      ${cell(a[1], res, pr.edF, 'c-f6').replace('>', '>' + lblM('Form-6 obtained'))}
+      ${cell(a[5], no, pr.edR2).replace('>', '>' + lblM('Reason Form-6 not obtained'))}
+      ${cell(a[6], no, pr.edN).replace('>', '>' + lblM('Refused by (name)'))}
+      ${cell(a[7], no, pr.edM, 'c-mob').replace('>', '>' + lblM('Refused by (mobile)'))}
+      <td class="c-edit"><button class="editlink" type="button">Edit</button>${tx ? `<div class="rowmsg">${tx}</div>` : ''}</td>
+    </tr>`;
+  }
+  function filtered(){
+    const q = $('q').value.trim().toUpperCase(), fw = $('fShow').value;
+    return rows.filter(r => {
+      const epic = r[1], a = norm(ans[epic]), done = isComplete(ans[epic]);
+      if(fw==='pending' && done) return false;
+      if(fw==='done' && !done) return false;
+      if((fw==='Residing' || fw==='ASDD') && a[0]!==fw) return false;
+      return !q || r[2].toUpperCase().includes(q) || epic.includes(q) || String(r[0])===q || String(r[6])===q;
+    });
+  }
   function render(){
-    const q = $('q').value.trim().toUpperCase(), fs = $('fStatus').value, fw = $('fShow').value;
-    let html = '', n = 0;
-    for(const r of rows){
-      const [sn, epic, name, rt, rn, op, os, , , st] = r;
-      const a = ans[epic], done = isComplete(a);
-      if(fs && st!==fs) continue;
-      if(fw==='pending' && done) continue;
-      if(fw==='done' && !done) continue;
-      if(q && !(name.toUpperCase().includes(q) || epic.includes(q) || String(sn)===q || String(os)===q)) continue;
-      n++;
-      const lk = isSubmitted(epic), le = lk && errEp.has(epic);
-      html += `<tr data-ep="${epic}" class="${done?'done':''}${dirty.has(epic)?' dirty':''}${lk?' locked':''}${le?' lockerr':''}">
-        <td class="c-sn">${sn}</td><td class="c-dist">CENTRAL</td><td class="c-acno">24</td><td class="c-acname">PATEL NAGAR</td>
-        <td class="c-name">${esc(name)}</td><td><span class="lbl-m">EPIC No.</span>${epic}</td>
-        <td><span class="lbl-m">Relation</span>${esc(rt)}</td><td class="c-rel-name"><span class="lbl-m">Relation Name</span>${esc(rn)}</td>
-        <td class="c-part">${esc(op)}</td><td><span class="lbl-m">Serial No</span>${esc(os)}</td>
-        <td class="c-rel"><span class="lbl-m">Status in ASDD list</span><span class="tag ${tagCls(st)}">${esc(st)}</span></td>
-        <td class="c-sel"><span class="lbl-m">After re-verification</span><select data-k="0" class="${a[0]?'':'empty'}">${opts(RES,a[0])}</select></td>
-        <td class="c-sel"><span class="lbl-m">Form-6 obtained?</span><select data-k="1" ${f6Attr(a)}>${f6Opts(a)}</select>${lk?`<div class="lockmsg">${lockTxt(epic)}</div>`:''}</td>
-        <td class="c-rem"><span class="lbl-m">Remarks (required for Residing)</span>${remCell(a)}</td>
-      </tr>`;
-    }
-    $('tb').innerHTML = html;
-    $('tb').closest('table').classList.toggle('psfrozen', !!psFrozen);
-    if(psFrozen) $('tb').querySelectorAll('select,input,textarea').forEach(el => el.disabled = true);
-    showFrozen();
-    $('none').classList.toggle('hide', n>0);
-    $('shown').textContent = `Showing ${n} of ${rows.length}`;
+    const list = filtered();
+    shownEps = list.map(r => r[1]);
+    $('tb').innerHTML = list.map(rowHtml).join('');
+    $('none').classList.toggle('hide', list.length>0);
+    $('shown').textContent = `Showing ${list.length} of ${rows.length}`;
+    updateSel();
+  }
+  function redrawRow(ep){
+    const tr = $('tb').querySelector(`tr[data-ep="${ep}"]`); if(!tr) return;
+    const r = rows.find(x => x[1]===ep); if(!r) return;
+    const t = document.createElement('tbody'); t.innerHTML = rowHtml(r); tr.replaceWith(t.firstElementChild);
+  }
+  function updateSel(){
+    const n = selected.size, vis = shownEps.length, visSel = shownEps.filter(ep => selected.has(ep)).length;
+    $('selCnt').textContent = n ? `${n} selected` : '';
+    [$('selAll'), $('selAllH')].forEach(c => { c.checked = vis > 0 && visSel === vis; c.indeterminate = visSel > 0 && visSel < vis; });
   }
 
   function updateStats(){
-    let done=0,res=0,f6=0;
-    for(const r of rows){ const a=ans[r[1]]; if(isComplete(a)) done++; if(a[0]==='Residing') res++; if(a[1]==='Yes') f6++; }
+    let done=0,res=0,asdd=0,f6=0;
+    for(const r of rows){ const a=norm(ans[r[1]]); if(isComplete(ans[r[1]])) done++; if(a[0]==='Residing') res++; if(a[0]==='ASDD') asdd++; if(a[0]==='Residing' && a[1]==='Yes') f6++; }
     $('sTotal').textContent = rows.length; $('sDone').textContent = done; $('sPend').textContent = rows.length-done;
-    $('sRes').textContent = res; $('sF6').textContent = f6;
+    $('sRes').textContent = res; $('sAsdd').textContent = asdd; $('sF6').textContent = f6;
     $('sBar').style.width = (rows.length ? done/rows.length*100 : 0)+'%';
-    $('save').disabled = busy || !dirty.size || !hasBackend || !!psFrozen;
-    $('markAllNR').disabled = busy || !rows.length || !!psFrozen;
-    const notSubmitted = rows.filter(r => !savedComplete(r[1])).length;
-    $('freeze').disabled = busy || !!dirty.size || !hasBackend || !rows.length || notSubmitted > 0 || !!psFrozen;
-    $('freeze').title = psFrozen ? 'Already frozen'
-      : notSubmitted ? `Freeze unlocks after ALL electors are submitted with Remarks for Residing (${notSubmitted} still pending)`
-      : dirty.size ? 'Submit your changes first, then Freeze'
-      : 'Lock your entries for good – no changes possible afterwards';
-    if(!busy && dirty.size && !psFrozen) setMsg(`${dirty.size} unsaved change(s). Tap Submit to save to Google Sheet.`,'warn');
+    $('save').disabled = busy || !dirty.size || !hasBackend;
+    $('markSel').disabled = busy || !rows.length;
+    $('freeze').disabled = true;
+    if(!busy && dirty.size) setMsg(`${dirty.size} unsaved change(s). Tap Submit to save to Google Sheet.`,'warn');
   }
 
   function saveDraft(){
-    const d = {}; dirty.forEach(ep => d[ep] = ans[ep]);
+    if(!cur) return;
+    const d = {}; dirty.forEach(ep => d[ep] = norm(ans[ep]));
     if(dirty.size) store.set('asdd_draft_'+cur.ps, d); else store.del('asdd_draft_'+cur.ps);
   }
+  function touch(ep){ if(isChanged(ep)) dirty.add(ep); else dirty.delete(ep); }
 
+  // Table clicks: Edit button and row checkboxes
+  $('tb').addEventListener('click', e => {
+    const tr = e.target.closest('tr'); if(!tr) return;
+    const ep = tr.dataset.ep;
+    if(e.target.closest('.editlink')){ openEdit(ep); return; }
+  });
   $('tb').addEventListener('change', e => {
-    const sel = e.target; if(sel.tagName!=='SELECT') return;
-    const tr = sel.closest('tr'), ep = tr.dataset.ep, k = +sel.dataset.k;
-    if(isLocked(ep)){ sel.value = ans[ep][k] || ''; flagLocked(tr); return; }
-    ans[ep][k] = sel.value;
-    sel.classList.toggle('empty', !sel.value);
-    if(k===0){
-      const f = tr.querySelector('select[data-k="1"]'), wasFrozen = f.disabled;
-      if(sel.value==='Not Residing') ans[ep][1] = 'No';
-      else if(wasFrozen) ans[ep][1] = '';          // coming from Not Residing: let BLO choose afresh
-      const tmp = document.createElement('div');
-      tmp.innerHTML = `<select data-k="1" ${f6Attr(ans[ep])}>${f6Opts(ans[ep])}</select>`;
-      f.replaceWith(tmp.firstChild);
-      if(sel.value==='Not Residing') ans[ep][2] = '';      // remarks not taken for Not Residing
-      tr.querySelector('td.c-rem').innerHTML = `<span class="lbl-m">Remarks (required for Residing)</span>${remCell(ans[ep])}`;
-    }else if(k===1){                                     // Form-6 changed: switch hint Reference Number <-> Reason
-      const ta = tr.querySelector('textarea.rem');
-      if(ta && !ta.disabled) ta.placeholder = remHint(ans[ep]) + ' (required, max ' + REM_MAX + ' characters)';
-      const c = tr.querySelector('.remcnt'); if(c){ const t = document.createElement('div'); t.innerHTML = remCnt(ans[ep]); c.replaceWith(t.firstChild); }
-    }
-    markRow(tr, ep);
+    if(!e.target.classList.contains('rchk')) return;
+    const tr = e.target.closest('tr'), ep = tr.dataset.ep;
+    if(e.target.checked) selected.add(ep); else selected.delete(ep);
+    tr.classList.toggle('sel', e.target.checked); updateSel();
   });
-  // Remarks typing: update answer, counter and row state without re-drawing the table
-  $('tb').addEventListener('input', e => {
-    const ta = e.target; if(ta.tagName!=='TEXTAREA') return;
-    const tr = ta.closest('tr'), ep = tr.dataset.ep;
-    if(isLocked(ep)){ ta.value = ans[ep][2] || ''; flagLocked(); return; }
-    ans[ep][2] = ta.value;
-    ta.classList.toggle('need', !remLen(ta.value));
-    const c = tr.querySelector('.remcnt'); if(c){ const t = document.createElement('div'); t.innerHTML = remCnt(ans[ep]); c.replaceWith(t.firstChild); }
-    markRow(tr, ep);
-  });
-  function markRow(tr, ep){
-    if(isChanged(ep)) dirty.add(ep); else dirty.delete(ep);
-    tr.classList.toggle('dirty', dirty.has(ep));
-    tr.classList.toggle('done', isComplete(ans[ep]));
-    const lm = tr.querySelector('.lockmsg'); if(lm) lm.textContent = lockTxt(ep);
-    saveDraft(); updateStats();
-  }
-  // Stop the dropdown from even opening on a submitted row
-  const blockLocked = e => {
-    const sel = e.target; if(sel.tagName!=='SELECT' && sel.tagName!=='TEXTAREA') return;
-    const tr = sel.closest('tr'); if(!tr || !isLocked(tr.dataset.ep)) return;
-    if(e.type==='keydown' && ['Tab','Shift'].includes(e.key)) return;
-    e.preventDefault(); sel.blur(); flagLocked(tr);
-  };
-  ['mousedown','touchstart','keydown'].forEach(ev => $('tb').addEventListener(ev, blockLocked, {passive:false}));
+  const selectAllShown = on => { shownEps.forEach(ep => on ? selected.add(ep) : selected.delete(ep)); render(); };
+  $('selAll').addEventListener('change', e => selectAllShown(e.target.checked));
+  $('selAllH').addEventListener('change', e => selectAllShown(e.target.checked));
 
-  async function submit(){
-    if(psFrozen){ flagLocked(); return; }
+  // "Mark Selected As": sets the status of every ticked elector. ASDD keeps only the visit dates.
+  $('markSel').addEventListener('change', () => {
+    const v = $('markSel').value; if(!v) return;
+    const list = rows.filter(r => selected.has(r[1]));
+    if(!list.length){ alert('First tick the electors (checkbox on the left), then choose "Mark Selected As".'); $('markSel').value = ''; return; }
+    const res = list.filter(r => norm(ans[r[1]])[0]==='Residing').length;
+    const msg = v==='ASDD'
+      ? `Mark ${list.length} selected elector(s) as ASDD?` + (res ? `\n\n${res} of them are now "Residing" – their Residing details will be removed.` : '')
+      : `Mark ${list.length} selected elector(s) as Residing?\n\nFor each of them you must then tap Edit and fill the reason and Form-6 details before they can be submitted.`;
+    if(!confirm(msg)){ $('markSel').value = ''; return; }
+    for(const r of list){ const ep = r[1], keep = ans[ep][NF]; ans[ep] = pad(norm([v, ...ans[ep].slice(1, NF)])); ans[ep][NF] = keep; touch(ep); }
+    selected.clear(); $('markSel').value = '';
+    saveDraft(); render(); updateStats();
+    if(v==='ASDD') setMsg(`${list.length} elector(s) marked ASDD. Review, then tap Submit to save.`,'warn');
+    else setMsg(`${list.length} elector(s) marked Residing – tap Edit on each to fill the details, then Save.`,'warn');
+  });
+
+  /* ---------- Edit form (one elector) ---------- */
+  let edEp = null, edDates = [[], []];
+  const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+  const isoToDMY = s => { const [y,m,d] = s.split('-'); return `${d}-${m}-${y}`; };
+  const dmyKey = s => { const m = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/.exec(s.trim()); return m ? m[3] + m[2].padStart(2,'0') + m[1].padStart(2,'0') : s; };
+  const splitDates = s => String(s||'').split(',').map(x => x.trim()).filter(Boolean);
+  function drawDates(k){
+    const box = $(k ? 'edD2' : 'edD1');
+    box.innerHTML = edDates[k].map((d,i) => `<span class="chip">${esc(d)}<button type="button" data-k="${k}" data-i="${i}" title="Remove">×</button></span>`).join('')
+      + (edDates[k].length < 10 ? `<input type="date" data-k="${k}" max="${todayISO()}" aria-label="Add a visit date"><button type="button" class="addd" data-k="${k}">+ Add date</button>` : '');
+    if(!edDates[k].length) box.insertAdjacentHTML('afterbegin', '<span class="meta" style="margin:0">No date added</span>');
+  }
+  function addDate(k){
+    const inp = $(k ? 'edD2' : 'edD1').querySelector('input[type=date]'); if(!inp || !inp.value) return;
+    if(inp.value > todayISO()){ alert('A visit date cannot be in the future.'); inp.value=''; return; }
+    const d = isoToDMY(inp.value);
+    if(!edDates[k].includes(d)){ edDates[k].push(d); edDates[k].sort((a,b) => dmyKey(a) < dmyKey(b) ? -1 : 1); }
+    drawDates(k);
+  }
+  ['edD1','edD2'].forEach(id => {
+    $(id).addEventListener('change', e => { if(e.target.matches('input[type=date]')) addDate(+e.target.dataset.k); });
+    $(id).addEventListener('click', e => {
+      const b = e.target.closest('button'); if(!b) return;
+      const k = +b.dataset.k;
+      if(b.classList.contains('addd')){ const inp = $(id).querySelector('input[type=date]'); if(inp.value) addDate(k); else if(inp.showPicker) try{ inp.showPicker(); }catch(_){ inp.focus(); } else inp.focus(); return; }
+      edDates[k].splice(+b.dataset.i, 1); drawDates(k);
+    });
+  });
+  // Enable / disable fields according to the rules:
+  //  ASDD -> everything except the two date fields disabled
+  //  Residing -> "Reason for not submitting EF" and Form-6 enabled & mandatory
+  //  Form-6 Yes -> next 3 fields disabled; Form-6 No -> next 3 fields mandatory
+  function setOn(id, on){
+    const el = $(id); el.closest('.fld').classList.toggle('off', !on);
+    if(!on && !el.disabled){ el.dataset.keep = el.value; el.value = ''; }
+    if(on && el.disabled && !el.value && el.dataset.keep){ el.value = el.dataset.keep; }
+    el.disabled = !on;
+    if(!on){ el.closest('.fld').classList.remove('bad'); const fe = document.querySelector(`.ferr[data-for="${id}"]`); if(fe) fe.textContent=''; }
+  }
+  function applyDeps(){
+    const res = $('edS').value === 'Residing', no = res && $('edF').value === 'No';
+    setOn('edR1', res); setOn('edF', res); setOn('edR2', no); setOn('edN', no); setOn('edM', no);
+  }
+  const edValue = () => [$('edS').value, $('edF').value, edDates[0].join(', '), edDates[1].join(', '),
+    $('edR1').value, $('edR2').value, $('edN').value, $('edM').value];
+  function showErrors(e){
+    document.querySelectorAll('#edForm .ferr').forEach(f => { const m = e[f.dataset.for] || ''; f.textContent = m; f.closest('.fld').classList.toggle('bad', !!m); });
+  }
+  function openEdit(ep){
+    const r = rows.find(x => x[1]===ep); if(!r) return;
+    edEp = ep;
+    const a = pad(ans[ep]);
+    $('edTitle').textContent = 'Edit – ' + r[2];
+    $('edInfo').innerHTML = `EPIC <b>${esc(ep)}</b> · ${esc(r[3])}: ${esc(r[4])} · Part ${esc(r[5])}, Serial ${esc(r[6])} · ASDD list: <b>${esc(r[9])}</b>`;
+    ['edR1','edF','edR2','edN','edM','edS'].forEach(id => { $(id).disabled = false; $(id).dataset.keep = ''; $(id).closest('.fld').classList.remove('off'); });
+    $('edS').value = a[0]; $('edF').value = a[1]; $('edR1').value = a[4]; $('edR2').value = a[5]; $('edN').value = a[6]; $('edM').value = a[7];
+    edDates = [splitDates(a[2]), splitDates(a[3])]; drawDates(0); drawDates(1);
+    const old = String(a[NF]||'').trim();
+    $('edOld').classList.toggle('hide', !old);
+    $('edOld').textContent = old ? 'Remarks entered earlier: ' + old : '';
+    showErrors({}); applyDeps();
+    $('edModal').classList.remove('hide');
+  }
+  function closeEdit(){ $('edModal').classList.add('hide'); edEp = null; }
+  $('edS').addEventListener('change', () => { applyDeps(); showErrors({}); });
+  $('edF').addEventListener('change', () => { applyDeps(); showErrors({}); });
+  $('edM').addEventListener('input', e => { const v = e.target.value.replace(/\D/g,'').slice(0,10); if(v !== e.target.value) e.target.value = v; });
+  $('edCancel').addEventListener('click', closeEdit);
+  $('edModal').addEventListener('click', e => { if(e.target === $('edModal')) closeEdit(); });
+  document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('edModal').classList.contains('hide')) closeEdit(); });
+  $('edForm').addEventListener('submit', e => {
+    e.preventDefault(); if(!edEp) return;
+    // a date picked but not yet added counts too
+    [0,1].forEach(k => { const inp = $(k ? 'edD2' : 'edD1').querySelector('input[type=date]'); if(inp && inp.value) addDate(k); });
+    const v = edValue(), err = problems(v);
+    if(Object.keys(err).length){ showErrors(err); const f = document.querySelector('#edForm .fld.bad select, #edForm .fld.bad input, #edForm .fld.bad textarea'); if(f) f.focus(); return; }
+    const ep = edEp, keep = ans[ep][NF];
+    ans[ep] = pad(norm(v)); ans[ep][NF] = keep; errEp.delete(ep); touch(ep);
+    closeEdit(); saveDraft(); redrawRow(ep); updateStats();
+    if(dirty.has(ep)) submit(true);
+    else setMsg('No change for this elector.','');
+  });
+
+  async function submit(fromEdit){
     if(!dirty.size || busy) return;
-    const pend = rows.filter(r => dirty.has(r[1]) && !isLocked(r[1]));
+    const pend = rows.filter(r => dirty.has(r[1]));
     const list = pend.filter(r => isComplete(ans[r[1]]));
     const half = pend.length - list.length;
-    const noRem = pend.filter(r => ans[r[1]][0]==='Residing' && ans[r[1]][1] && !remOk(ans[r[1]])).length;
-    if(!list.length){ setMsg(noRem ? 'Remarks are required for Residing electors (Reference Number if Form-6 Yes, Reason if Form-6 No).' : 'Incomplete: fill both dropdowns for each elector.','err'); return; }
+    if(!list.length){ setMsg('Incomplete: tap Edit on the highlighted electors and fill the required details.','err'); return; }
     const nUpd = list.filter(r => isSubmitted(r[1])).length, nNew = list.length - nUpd;
-    if(!confirm(`Submit ${list.length} elector(s)?` + (nNew ? `\n• ${nNew} new` : '') + (nUpd ? `\n• ${nUpd} already submitted – their old answers will be REPLACED` : '')
-      + (half ? `\n\n${half} incomplete elector(s) will NOT be submitted (a dropdown not selected${noRem ? `, or Remarks left blank for ${noRem} Residing elector(s)` : ''}).` : ''))) return;
+    const quiet = fromEdit === true && list.length === 1 && !half;
+    if(!quiet && !confirm(`Submit ${list.length} elector(s)?` + (nNew ? `\n• ${nNew} new` : '') + (nUpd ? `\n• ${nUpd} already submitted – their old answers will be REPLACED` : '')
+      + (half ? `\n\n${half} incomplete elector(s) will NOT be submitted (required details missing – use Edit).` : ''))) return;
     busy = true; $('save').disabled = true; $('save').textContent = 'Saving…';
     setMsg(`Saving ${list.length} elector(s)…`);
-    const payload = { ps: cur.ps, blo: cur.blo, partName: cur.part,
-      rows: list.map(r => { const a = norm(ans[r[1]]); return [r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], a[0], a[1], a[2]]; }) };
+    const payload = { ps: cur.ps, blo: cur.blo, partName: cur.part, v: 2,
+      rows: list.map(r => [r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], ...norm(ans[r[1]])]) };
     const sent = {}; list.forEach(r => sent[r[1]] = norm(ans[r[1]]));
     let out = null;
     try{
       out = await backend(JSON.stringify(payload), n => setMsg(`Server busy, retrying (${n})… please keep this page open.`,'warn'));
     }catch(e){ out = null; }
 
-    if(out && out.frozen){                     // frozen (e.g. from another phone) – nothing was saved
-      psFrozen = out.frozenInfo || { at: '' }; dirty.clear(); store.del('asdd_draft_'+cur.ps); store.del('asdd_unconfirmed_'+cur.ps);
-      busy = false; $('save').textContent = 'Submit'; render(); updateStats();
-      setMsg('✗ NOT saved – entries of this PS are already FROZEN. No changes can be made.','err');
-      return;
-    }
     // Decide, per elector, what is REALLY in the Google Sheet.
-    let truth = null;           // epic -> [residing, form6] as stored in the sheet
+    let truth = null;
     if(out && out.ok){
       truth = {};
-      const rej = new Set(out.rejected || []), ex = out.existing || {}, skip = new Set(out.skipped || []);
-      list.forEach(r => { const ep = r[1]; truth[ep] = rej.has(ep) ? (ex[ep] || null) : skip.has(ep) ? undefined : sent[ep]; });
+      const skip = new Set(out.skipped || []);
+      list.forEach(r => { const ep = r[1]; truth[ep] = skip.has(ep) ? undefined : sent[ep]; });
     }else{
       // Save failed or the reply was lost – ask the sheet directly before telling the BLO anything.
       setMsg('Checking with Google Sheet whether your data was saved…','warn');
       const sv = await backendGet(`${URL_}?action=get&ps=${cur.ps}`).catch(() => null);
-      if(sv && sv.ok){ truth = {}; list.forEach(r => truth[r[1]] = sv.data[r[1]] && sv.data[r[1]][0] && sv.data[r[1]][1] ? sv.data[r[1]] : undefined); }
+      if(sv && sv.ok){ truth = {}; list.forEach(r => { const x = sv.data && sv.data[r[1]]; truth[r[1]] = x && x[0] ? pad(x) : undefined; }); }
     }
 
     if(!truth){
@@ -573,7 +778,7 @@
       store.set('asdd_unconfirmed_'+cur.ps, sent);
       busy = false; updateStats(); $('save').textContent = 'Submit';
       setMsg(`⚠ No internet / Google not reachable. Could NOT confirm whether ${list.length} elector(s) were saved. `
-        + `Your selections are kept on this phone. When internet is back, refresh this page (pull down) – it will show exactly what was saved.`,'err');
+        + `Your entries are kept on this phone. When internet is back, refresh this page (pull down) – it will show exactly what was saved.`,'err');
       return;
     }
     const res = applyTruth(sent, truth);
@@ -584,14 +789,12 @@
 
   // Applies the sheet's real state to the page. Returns counts.
   function applyTruth(sent, truth){
-    const pad = x => [x[0]||'', x[1]||'', x[2]||''];
-    const same = (a, b) => { if(!a || !b) return false; const x = norm(a), y = norm(b); return x[0]===y[0] && x[1]===y[1] && x[2]===y[2]; };
     const r = { saved:0, taken:0, failed:0 };
     for(const ep in sent){
-      const t = truth[ep];
-      if(same(t, sent[ep])){ saved[ep] = pad(t); ans[ep] = pad(t); dirty.delete(ep); errEp.delete(ep); r.saved++; }
-      else if(t && t[0] && t[1]){ saved[ep] = pad(t); ans[ep] = pad(t); dirty.delete(ep); errEp.add(ep); r.taken++; }   // someone else's answer already stored
-      else { r.failed++; }                                                                                                   // not in sheet – still pending
+      const t = truth[ep], keep = ans[ep] ? ans[ep][NF] : '';
+      if(t && sameAns(t, sent[ep])){ saved[ep] = pad(norm(t)); saved[ep][NF] = keep; ans[ep] = pad(saved[ep]); dirty.delete(ep); errEp.delete(ep); r.saved++; }
+      else if(t && t[0]){ saved[ep] = pad(t); saved[ep][NF] = keep; ans[ep] = pad(saved[ep]); dirty.delete(ep); errEp.add(ep); r.taken++; }   // sheet has a different answer
+      else { r.failed++; }                                                                                                                   // not in sheet – still pending
     }
     return r;
   }
@@ -599,24 +802,10 @@
     const parts = [];
     if(r.saved)  parts.push(`✓ ${r.saved} elector(s) SAVED to Google Sheet`);
     if(r.failed) parts.push(`✗ ${r.failed} elector(s) NOT saved – please tap Submit again`);
-    if(r.taken)  parts.push(`✗ ${r.taken} elector(s) NOT updated – sheet has a different answer, tap "Reload from sheet" (red)`);
-    if(half)     parts.push(`${half} incomplete elector(s) still pending (dropdown or Remarks)`);
+    if(r.taken)  parts.push(`✗ ${r.taken} elector(s) NOT updated – sheet has a different answer, tap "Reload from sheet"`);
+    if(half)     parts.push(`${half} incomplete elector(s) still pending (tap Edit)`);
     return parts.join(' · ') + ` (${new Date().toLocaleTimeString()})`;
   }
-
-  // One click: select "Not Residing" (Form-6 = No) for every elector of this BLO. BLO reviews, then taps Submit.
-  function markAllNotResiding(){
-    if(psFrozen){ flagLocked(); return; }
-    if(!cur || busy || !rows.length) return;
-    const res = rows.filter(r => ans[r[1]][0]==='Residing').length;
-    if(res && !confirm(`${res} elector(s) are currently marked "Residing". Change them to "Not Residing" too?`)) return;
-    for(const r of rows){ const ep = r[1]; ans[ep] = ['Not Residing', 'No', '']; if(isChanged(ep)) dirty.add(ep); else dirty.delete(ep); }
-    $('q').value = ''; $('fStatus').value = ''; $('fShow').value = '';
-    saveDraft(); render(); updateStats();
-    if(dirty.size) setMsg(`All ${rows.length} electors selected as Not Residing (Form-6: No). Review, then tap Submit to save.`,'warn');
-    else setMsg('All electors are already saved as Not Residing.','ok');
-  }
-  $('markAllNR').addEventListener('click', markAllNotResiding);
 
   // Freeze: BLO locks all entries of this PS for good. Separate from Submit.
   async function freezePS(){
@@ -651,13 +840,35 @@
     if(dirty.size && !confirm('Discard unsaved changes and reload saved data from the sheet?')) return;
     if(cur){ store.del('asdd_draft_'+cur.ps); dirty.clear(); loadPS(); }
   });
-  let t; $('q').addEventListener('input', () => { clearTimeout(t); t = setTimeout(render, 150); });
-  $('fStatus').addEventListener('change', render); $('fShow').addEventListener('change', render);
+  let t; $('q').addEventListener('input', () => { if(!cur) return; clearTimeout(t); t = setTimeout(render, 150); });
+  $('fShow').addEventListener('change', () => { if(cur) render(); });
+  // Search By EPIC: filters the open Part; if the EPIC is not in it (or no Part is open), finds its Part and opens it
+  async function searchEpic(){
+    const q = $('q').value.trim().toUpperCase(); $('q').value = q;
+    if(!q){ if(cur) render(); return; }
+    if(cur && rows.some(r => r[1] === q)){ $('fShow').value = ''; render(); return; }
+    if(!/^[A-Z]{2,4}\d{5,8}$/.test(q)){ if(cur) render(); else alert('Select a Part No. first, or enter a full EPIC number.'); return; }
+    const btn = $('qBtn'), old = btn.textContent; btn.disabled = true; btn.textContent = 'Searching…';
+    try{
+      for(let g = 1; g <= 10; g++){
+        const grp = await getJSONRetry(`data/g${g}.json`);
+        for(const ps in grp){ if(grp[ps].some(r => r[1] === q)){
+          if(cur && String(cur.ps) === ps){ $('fShow').value = ''; render(); return; }
+          if(dirty.size && !confirm(`EPIC ${q} is in Part No. ${ps}. You have unsaved changes here – open Part ${ps} anyway? (Your changes stay saved on this device as a draft.)`)) return;
+          dirty.clear(); $('bloSel').value = ps; $('fShow').value = ''; await loadPS(); return;
+        } }
+      }
+      alert(`EPIC ${q} was not found in the ASDD list of AC 24.`);
+    }catch(e){ alert('Search failed – check internet and try again.'); }
+    finally{ btn.disabled = false; btn.textContent = old; }
+  }
+  $('qBtn').addEventListener('click', searchEpic);
+  $('q').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); searchEpic(); } });
   let skipUnloadPrompt = false;
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-10-30-5';
+  const APP_VER = '2026-11-02-1';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
@@ -730,7 +941,7 @@
   let admMode = '', admSum = {}, remSum = null, remBusy = false;
   const fmt = v => Number(v).toLocaleString('en-IN');
   const MAIN_HEAD = [['ps','PS No'],['blo','BLO Name'],['part','Part Name'],['n','ASDD Total'],['done','Completed'],['pct','Progress'],
-    ['residing','Residing'],['notResiding','Not Residing'],['f6yes','Form-6 Yes'],['f6no','Form-6 No']];
+    ['residing','Residing'],['notResiding','ASDD'],['f6yes','Form-6 Yes'],['f6no','Form-6 No']];
   const REM_HEAD  = [['ps','PS No'],['blo','BLO Name'],['part','Part Name'],['rN','Residing (Remarks needed)'],['rDone','Remarks Filled'],
     ['rPct','Remarks Progress'],['rPend','Remarks Pending'],['f6yesR','Form-6 Yes'],['f6noR','Form-6 No']];
   // Keys used by filters / sort / overall bar for the current mode
@@ -860,7 +1071,7 @@
       doc.autoTable({
         startY: 92, margin: { left: 24, right: 24, bottom: 30 },
         head: R ? [['S.N.','PS No','BLO Name','Part Name','Residing','Remarks Filled','Remarks Pending','Remarks Progress','Form-6 Yes','Form-6 No']]
-                : [['S.N.','PS No','BLO Name','Part Name','ASDD Total','Completed','Pending','Progress','Residing','Not Residing','Form-6 Yes','Form-6 No']],
+                : [['S.N.','PS No','BLO Name','Part Name','ASDD Total','Completed','Pending','Progress','Residing','ASDD','Form-6 Yes','Form-6 No']],
         body: !list.length ? [['', '', 'No BLOs in this filter', '', '', '', '', '', '', ''].concat(R ? [] : ['', ''])]
           : R ? list.map((b,i) => [i+1, b.ps, b.blo + (b.frozen ? ' (Frozen)' : ''), b.part, b.rN, b.rDone, b.rPend, b.rN ? b.rPct : 'No Residing', b.f6yesR, b.f6noR])
               : list.map((b,i) => [i+1, b.ps, b.blo + (b.frozen ? ' (Frozen)' : ''), b.part, b.n, b.done, b.n - b.done, b.pct, b.residing, b.notResiding, b.f6yes, b.f6no]),
@@ -909,17 +1120,17 @@
       ]);
       if(!psCur || psCur.ps !== ps) return;
       if(!sv.ok) throw new Error(sv.error || 'Server error');
-      psRows = data; psSaved = sv.data || {};
+      psRows = data; psSaved = {}; for(const ep in (sv.data || {})) psSaved[ep] = norm(sv.data[ep]);
       $('psMeta').textContent = `Part ${psCur.ps} – ${psCur.part} · live from Google Sheet at ${new Date().toLocaleTimeString()}`;
       const done = psRows.filter(r => isDone(r[1])), cnt = (k, v) => done.filter(r => psSaved[r[1]][k] === v).length;
       $('psStats').innerHTML = [
         ['Total electors', psRows.length], ['Submitted', `${done.length} (${psRows.length ? (done.length/psRows.length*100).toFixed(0) : 0}%)`],
-        ['Pending', psRows.length - done.length], ['Residing', cnt(0,'Residing')], ['Not Residing', cnt(0,'Not Residing')], ['Form-6 Yes', cnt(1,'Yes')]
+        ['Pending', psRows.length - done.length], ['Residing', cnt(0,'Residing')], ['ASDD', cnt(0,'ASDD')], ['Form-6 Yes', cnt(1,'Yes')], ['Details complete', done.filter(r => isComplete(psSaved[r[1]])).length]
       ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
       drawPS();
     }catch(e){ $('psMeta').textContent = 'Could not read Google Sheet: ' + e.message + ' – tap Refresh to try again.'; }
   }
-  const isDone = ep => !!(psSaved[ep] && psSaved[ep][0] && psSaved[ep][1]);
+  const isDone = ep => !!(psSaved[ep] && psSaved[ep][0]);
   function psFiltered(){
     const q = $('psQ').value.trim().toUpperCase(), f = $('psF').value, rf = $('psR').value;
     return psRows.filter(r => { const d = isDone(r[1]);
@@ -929,17 +1140,20 @@
   }
   function drawPS(){
     const list = psFiltered();
-    $('psTb').innerHTML = list.map(r => { const a = psSaved[r[1]] || ['',''], d = isDone(r[1]);
-      const res = a[0] ? `<span class="${a[0]==='Residing'?'ans-r':'ans-nr'}">${esc(a[0])}</span>` : '<span class="ans-none">—</span>';
-      const f6 = a[1] ? `<b>${esc(a[1])}</b>` : '<span class="ans-none">—</span>';
-      return `<tr class="${d?'done':''}"><td>${r[0]}</td><td class="l">${esc(r[2])}</td><td>${esc(r[1])}</td><td>${esc(r[3])}</td><td class="l">${esc(r[4])}</td><td>${esc(r[6])}</td>
-        <td><span class="tag ${tagCls(r[9])}">${esc(r[9])}</span></td><td>${res}</td><td>${f6}</td><td class="rem-cell">${a[0]==='Residing' && a[2] ? esc(a[2]) : '<span class="ans-none">—</span>'}</td></tr>`; }).join('');
+    const na = '<span class="ans-none">—</span>';
+    $('psTb').innerHTML = list.map(r => { const a = psSaved[r[1]] || norm([]), d = isDone(r[1]), ok = d && isComplete(a);
+      const v = (x, applies) => applies ? (x ? esc(x) : '<b style="color:var(--err)">Required</b>') : na;
+      const res = a[0] ? `<span class="${a[0]==='Residing'?'ans-r':'ans-nr'}">${esc(a[0])}</span>` : na;
+      const R = a[0]==='Residing', N = R && a[1]==='No';
+      return `<tr class="${ok?'done':''}"><td>${r[0]}</td><td class="l">${esc(r[2])}</td><td>${esc(r[1])}</td><td>${esc(r[3])}</td><td class="l">${esc(r[4])}</td><td>${esc(r[6])}</td>
+        <td>${a[2] ? esc(a[2]) : na}</td><td><span class="tag ${tagCls(r[9])}">${esc(r[9])}</span></td><td>${a[3] ? esc(a[3]) : na}</td><td>${res}</td>
+        <td class="rem-cell">${v(a[4], R)}</td><td>${R ? (a[1] ? '<b>' + esc(a[1]) + '</b>' : v('', true)) : na}</td><td class="rem-cell">${v(a[5], N)}</td><td class="rem-cell">${v(a[6], N)}</td><td>${v(a[7], N)}</td></tr>`; }).join('');
     $('psNone').classList.toggle('hide', list.length > 0);
     $('psShown').textContent = `Showing ${list.length} of ${psRows.length}`;
   }
   let pt; $('psQ').addEventListener('input', () => { clearTimeout(pt); pt = setTimeout(drawPS, 150); });
   $('psF').addEventListener('change', drawPS); $('psR').addEventListener('change', drawPS);
-  // All Remarks PDF: every Residing elector (PS, BLO, S.N., name, EPIC, status, Form-6, Remarks) for the BLOs in scope
+  // All Residing PDF: every Residing elector with all re-verification details, PS-wise, for the BLOs in scope
   $('admRemPdf').addEventListener('click', async () => {
     const btn = $('admRemPdf'), old = btn.textContent;
     if(!hasBackend){ $('admMsg').textContent = 'Google Sheet link not set in config.js.'; return; }
@@ -947,15 +1161,16 @@
     try{
       await loadLibs('pdf');
       const list = inScope(blos).slice().sort((a,b) => a.ps - b.ps), body = [];
-      let filled = 0;
-      const add = (b, sn, name, ep, res, f6, rem) => { rem = String(rem||'').trim(); if(rem) filled++;
-        body.push([body.length+1, b.ps, b.blo, Number(sn) || sn, name, ep, res, f6 || '', rem || 'NOT FILLED']); };
-      // FAST path: one server call returns every Residing elector (needs the 'remall' action in Apps Script)
-      $('admMsg').textContent = 'Reading remarks…';
-      const all = await backendGet(`${URL_}?action=remall`).catch(() => null);
-      if(all && all.ok && all.remall){
-        for(const b of list){ const rows = (all.data || {})[String(b.ps)] || [];
-          rows.slice().sort((x,y) => Number(x[0]) - Number(y[0])).forEach(r => add(b, r[0], r[1], r[2], r[3], r[4], r[5])); }
+      let full = 0;
+      const add = (b, sn, name, ep, x) => { const a = norm(x), ok = isComplete(a); if(ok) full++;
+        body.push([body.length+1, b.ps, b.blo, Number(sn) || sn, name, ep, a[2] || '-', a[3] || '-', a[4] || 'NOT FILLED', a[1] || 'NOT FILLED',
+          a[1]==='No' ? (a[5] || 'NOT FILLED') : '-', a[1]==='No' ? (a[6] || 'NOT FILLED') : '-', a[1]==='No' ? (a[7] || 'NOT FILLED') : '-']); };
+      // FAST path: one server call returns every Residing elector (Apps Script action "resall")
+      $('admMsg').textContent = 'Reading Residing electors…';
+      const all = await backendGet(`${URL_}?action=resall`).catch(() => null);
+      if(all && all.ok && all.resall){
+        for(const b of list){ const rs = (all.data || {})[String(b.ps)] || [];
+          rs.slice().sort((x,y) => Number(x[0]) - Number(y[0])).forEach(r => add(b, r[0], r[1], r[2], r[3])); }
       }else{
         // Fallback: read each PS (12 at a time)
         const groups = {}, saved = {}; let i = 0, doneN = 0;
@@ -966,38 +1181,38 @@
             const sv = await backendGet(`${URL_}?action=get&ps=${b.ps}`).catch(() => null);
             if(!sv || !sv.ok) throw new Error('could not read PS-' + b.ps + ' – try again');
             saved[b.ps] = sv.data || {};
-            $('admMsg').textContent = `Reading remarks… ${++doneN} of ${list.length} BLOs`;
+            $('admMsg').textContent = `Reading… ${++doneN} of ${list.length} BLOs`;
           }
         };
         await Promise.all(Array.from({length: 12}, worker));
         for(const b of list){
-          const rows = (await grp(b.ps))[b.ps] || [], sv = saved[b.ps];
-          for(const r of rows){ const a = sv[r[1]]; if(a && a[0] === 'Residing') add(b, r[0], r[2], r[1], a[0], a[1], a[2]); }
+          const rs = (await grp(b.ps))[b.ps] || [], sv = saved[b.ps];
+          for(const r of rs){ const a = sv[r[1]] && norm(sv[r[1]]); if(a && a[0] === 'Residing') add(b, r[0], r[2], r[1], a); }
         }
       }
       const doc = new window.jspdf.jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
       const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
       doc.setFont('helvetica','bold'); doc.setFontSize(15);
-      doc.text('Remarks of Residing ASDD Electors – PS-wise', W/2, 36, { align:'center' });
-      doc.setFont('helvetica','bold'); doc.setFontSize(10);
+      doc.text('Residing ASDD Electors – Re-verification Details, PS-wise', W/2, 36, { align:'center' });
+      doc.setFontSize(10);
       doc.text(`District: CENTRAL   |   AC: 24 - PATEL NAGAR${viewer ? '   |   ' + viewer.name + ' (PS ' + viewer.from + '–' + viewer.to + ')' : ''}`, W/2, 54, { align:'center' });
-      doc.setFont('helvetica','bold');
-      doc.text(`Residing electors: ${body.length}   |   Remarks filled: ${filled}   |   Not filled: ${body.length - filled}`, W/2, 70, { align:'center' });
-      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(90);
+      doc.text(`Residing electors: ${body.length}   |   Details complete: ${full}   |   Details pending: ${body.length - full}`, W/2, 70, { align:'center' });
+      doc.setFontSize(8.5); doc.setTextColor(90);
       doc.text('Generated: ' + new Date().toLocaleString('en-IN'), W/2, 83, { align:'center' }); doc.setTextColor(0);
       doc.autoTable({
-        startY: 92, margin: { left: 24, right: 24, bottom: 30 },
-        head: [['#','PS No','BLO Name','S.N.','Name of the Elector','EPIC No','Status','Form-6','Remarks']],
-        body: body.length ? body : [['','','','','No Residing electors','','','','']],
-        styles: { fontSize: 7.5, fontStyle: 'bold', textColor: 0, cellPadding: 2.5, valign: 'middle', lineColor: [213,219,227], lineWidth: 0.4, overflow: 'linebreak' },
+        startY: 92, margin: { left: 16, right: 16, bottom: 30 },
+        head: [['#','PS','BLO Name','S.N.','Name of the Elector','EPIC No','Visit dates (Enum.)','Visit dates (Re-verif.)','Reason EF not submitted','Form-6','Reason Form-6 not obtained','Refused by (Name)','Refused by (Mobile)']],
+        body: body.length ? body : [['','','','','No Residing electors','','','','','','','','']],
+        styles: { fontSize: 6.8, fontStyle: 'bold', textColor: 0, cellPadding: 2.2, valign: 'middle', lineColor: [213,219,227], lineWidth: 0.4, overflow: 'linebreak' },
         headStyles: { fillColor: [26,95,85], textColor: 255, fontStyle: 'bold', halign: 'center' },
-        columnStyles: { 0:{cellWidth:28,halign:'center'}, 1:{cellWidth:36,halign:'center'}, 2:{cellWidth:78}, 3:{cellWidth:34,halign:'center'},
-          4:{cellWidth:130}, 5:{cellWidth:72}, 6:{cellWidth:50,halign:'center'}, 7:{cellWidth:40,halign:'center'}, 8:{cellWidth:'auto'} },
-        didParseCell: d => { if(d.section==='body' && d.column.index===8 && d.cell.raw==='NOT FILLED'){ d.cell.styles.textColor=[176,58,46]; d.cell.styles.fontStyle='bold'; } },
+        columnStyles: { 0:{cellWidth:24,halign:'center'}, 1:{cellWidth:24,halign:'center'}, 2:{cellWidth:56}, 3:{cellWidth:26,halign:'center'},
+          4:{cellWidth:86}, 5:{cellWidth:58}, 6:{cellWidth:52}, 7:{cellWidth:52}, 8:{cellWidth:'auto'}, 9:{cellWidth:34,halign:'center'},
+          10:{cellWidth:'auto'}, 11:{cellWidth:58}, 12:{cellWidth:52,halign:'center'} },
+        didParseCell: d => { if(d.section==='body' && d.cell.raw==='NOT FILLED'){ d.cell.styles.textColor=[176,58,46]; } },
         didDrawPage: () => { doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(120); doc.text('Page ' + doc.internal.getNumberOfPages(), W - 24, H - 14, { align:'right' }); doc.setTextColor(0); }
       });
-      doc.save(`ASDD_All_Remarks_${new Date().toISOString().slice(0,10)}.pdf`);
-      $('admMsg').textContent = `PDF ready – ${body.length} Residing electors, ${filled} with Remarks.`;
+      doc.save(`ASDD_All_Residing_${new Date().toISOString().slice(0,10)}.pdf`);
+      $('admMsg').textContent = `PDF ready – ${body.length} Residing electors, ${full} with complete details.`;
     }catch(e){ $('admMsg').textContent = 'Could not make PDF: ' + e.message; }
     finally{ btn.disabled = false; btn.textContent = old; }
   });
@@ -1017,15 +1232,18 @@
   }
   async function loadLibs(k){ for(const src of LIBS[k]) await loadScript(src); }
   const FILTER_NAME = { done:'submitted', '':'all', pending:'pending' };
-  const HEAD = ['S.No','Name of the Elector','EPIC No','Relation Type','Relation Name','Old Part No','Old Serial No','Age','Gender',
-    'Status of Elector in the ASDD List','Status after Re-verification (Residing/Not Residing)','Form-6 Obtained or Not','Remarks'];
-  function exportRows(){ return psFiltered().map(r => { const a = psSaved[r[1]] || ['','',''];
-    return [Number(r[0]), r[2], r[1], r[3], r[4], r[5], Number(r[6]) || r[6], Number(r[7]) || r[7], r[8], r[9], a[0], a[1], a[0]==='Residing' ? (a[2]||'') : '']; }); }
+  const HEAD = ['S.No','Name of the Elector','EPIC No','Relation Type','Relation Name','Part No','Serial No','Age','Gender',
+    'Date(s) of visit by BLO during Enumeration Phase','Status of Elector in the ASDD List','Date(s) of visit by BLO during Re-verification',
+    'Status of ASDD Elector during Re-verification by BLOs (Residing/ASDD)','If Found Residing, Reason for not submitting EF during Enumeration Phase',
+    'If found Residing & eligible for Enrolment, Form-6 Obtained or Not (Yes/No)','If found Residing & eligible for Enrolment, but Form-6 Not obtained, Reason thereof',
+    'If Form-6 Refused, Whether refused by Elector/Relative (Mention Name)','If Form-6 Refused, Whether refused by Elector/Relative (Mention Mobile Number)'];
+  function exportRows(){ return psFiltered().map(r => { const a = psSaved[r[1]] || norm([]);
+    return [Number(r[0]), r[2], r[1], r[3], r[4], r[5], Number(r[6]) || r[6], Number(r[7]) || r[7], r[8], a[2], r[9], a[3], a[0], a[4], a[1], a[5], a[6], a[7]]; }); }
   function exportInfo(){
     const done = psRows.filter(r => isDone(r[1])), c = (k, v) => done.filter(r => psSaved[r[1]][k] === v).length;
     return { name: `PS-${psCur.ps}_${psCur.blo}_ASDD_${FILTER_NAME[$('psF').value]}`.replace(/[^\w\-]+/g,'_'),
       when: new Date().toLocaleString('en-IN'), total: psRows.length, done: done.length, pending: psRows.length - done.length,
-      res: c(0,'Residing'), nres: c(0,'Not Residing'), yes: c(1,'Yes'), no: c(1,'No'),
+      res: c(0,'Residing'), nres: c(0,'ASDD'), yes: c(1,'Yes'), no: c(1,'No'),
       resNo: done.filter(r => psSaved[r[1]][0]==='Residing' && psSaved[r[1]][1]==='No').length,
       view: $('psF').selectedOptions[0].text + ($('psR').value ? ' · ' + $('psR').value : '') + ($('psQ').value.trim() ? ` · search "${$('psQ').value.trim()}"` : '') };
   }
@@ -1039,7 +1257,7 @@
     await loadLibs('xlsx');
     const I = exportInfo(), rows = exportRows(), wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([HEAD, ...rows]);
-    ws['!cols'] = [6,26,14,10,24,8,8,6,7,20,26,14,60].map(w => ({ wch: w }));
+    ws['!cols'] = [6,26,14,10,24,7,8,6,7,22,20,22,18,40,14,40,24,16].map(w => ({ wch: w }));
     ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:Math.max(rows.length,1), c:HEAD.length-1} }) };
     XLSX.utils.book_append_sheet(wb, ws, 'Entries');
     const sum = XLSX.utils.aoa_to_sheet([
@@ -1047,7 +1265,7 @@
       ['District','CENTRAL'], ['AC','24 – PATEL NAGAR'], ['Part / PS No', psCur.ps], ['Part Name', psCur.part], ['BLO Name', psCur.blo],
       ['Rows in this file', rows.length + ' (' + I.view + ')'], ['Downloaded on', I.when], [],
       ['Total electors in ASDD list', I.total], ['Submitted', I.done], ['Pending', I.pending],
-      ['Residing', I.res], ['Not Residing', I.nres], ['Form-6 obtained: Yes', I.yes], ['Form-6 obtained: No', I.no],
+      ['Residing', I.res], ['ASDD', I.nres], ['Form-6 obtained: Yes', I.yes], ['Form-6 obtained: No', I.no],
       ['Residing but Form-6 not obtained', I.resNo]
     ]);
     sum['!cols'] = [{ wch: 28 }, { wch: 40 }];
@@ -1120,18 +1338,19 @@
     doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text('Status of Re-verification of ASDD Electors', W/2, 36, { align:'center' });
     doc.setFont('helvetica','normal'); doc.setFontSize(10);
     doc.text(`District: CENTRAL   |   AC: 24 - PATEL NAGAR   |   Part/PS No: ${psCur.ps} - ${psCur.part}   |   BLO: ${psCur.blo}`, W/2, 54, { align:'center' });
-    doc.text(`Total: ${I.total}   Submitted: ${I.done}   Pending: ${I.pending}   Residing: ${I.res}   Not Residing: ${I.nres}   Form-6 Yes: ${I.yes}   Form-6 No: ${I.no}`, W/2, 69, { align:'center' });
+    doc.text(`Total: ${I.total}   Submitted: ${I.done}   Pending: ${I.pending}   Residing: ${I.res}   ASDD: ${I.nres}   Form-6 Yes: ${I.yes}   Form-6 No: ${I.no}`, W/2, 69, { align:'center' });
     doc.setFontSize(8.5); doc.setTextColor(90);
     doc.text(`Showing: ${I.view} (${rows.length} rows)   |   Downloaded: ${I.when}`, W/2, 82, { align:'center' }); doc.setTextColor(0);
-    const cols = [0,1,2,3,4,6,9,10,11,12];       // S.No, Name, EPIC, Rel type, Rel name, Serial, ASDD status, Residing, Form-6, Remarks
+    const cols = [0,1,2,6,9,10,11,12,13,14,15,16,17];
     doc.autoTable({
-      startY: 92, margin: { left: 24, right: 24, bottom: 30 },
-      head: [['S.N.','Name of the Elector','EPIC No.','Relation Type','Relation Name','Serial No','Status in ASDD List','Status after Re-verification','Form-6 Obtained','Remarks']],
-      body: rows.length ? rows.map(r => cols.map(i => r[i] === '' ? '-' : r[i])) : [['', 'No entries to show', '', '', '', '', '', '', '', '']],
-      styles: { fontSize: 7.5, cellPadding: 3, valign: 'middle', lineColor: [213,219,227], lineWidth: 0.4, overflow: 'linebreak' },
+      startY: 92, margin: { left: 18, right: 18, bottom: 30 },
+      head: [['S.N.','Name of the Elector','EPIC No.','Serial No','Visit dates (Enumeration)','Status in ASDD List','Visit dates (Re-verification)','Status (Residing/ASDD)','Reason EF not submitted','Form-6 Obtained','Reason Form-6 not obtained','Refused by (Name)','Refused by (Mobile)']],
+      body: rows.length ? rows.map(r => cols.map(i => r[i] === '' ? '-' : r[i])) : [['', 'No entries to show', '', '', '', '', '', '', '', '', '', '', '']],
+      styles: { fontSize: 6.8, cellPadding: 2.5, valign: 'middle', lineColor: [213,219,227], lineWidth: 0.4, overflow: 'linebreak' },
       headStyles: { fillColor: [26,95,85], textColor: 255, fontStyle: 'bold', halign: 'center' },
       alternateRowStyles: { fillColor: [242,246,248] },
-      columnStyles: { 0:{halign:'center',cellWidth:32}, 2:{halign:'center'}, 3:{halign:'center'}, 5:{halign:'center',cellWidth:44}, 6:{halign:'center'}, 7:{halign:'center',fontStyle:'bold'}, 8:{halign:'center',fontStyle:'bold',cellWidth:50}, 9:{cellWidth:190} },
+      columnStyles: { 0:{halign:'center',cellWidth:26}, 1:{cellWidth:78}, 2:{halign:'center',cellWidth:56}, 3:{halign:'center',cellWidth:32}, 4:{cellWidth:52}, 5:{halign:'center',cellWidth:54},
+        6:{cellWidth:52}, 7:{halign:'center',fontStyle:'bold',cellWidth:44}, 8:{cellWidth:'auto'}, 9:{halign:'center',fontStyle:'bold',cellWidth:36}, 10:{cellWidth:'auto'}, 11:{cellWidth:56}, 12:{halign:'center',cellWidth:52} },
       didDrawPage: d => { doc.setFontSize(8); doc.setTextColor(120);
         doc.text(`PS-${psCur.ps} ${psCur.blo} - Page ${doc.internal.getNumberOfPages()}`, W - 24, doc.internal.pageSize.getHeight() - 14, { align:'right' }); doc.setTextColor(0); }
     });
