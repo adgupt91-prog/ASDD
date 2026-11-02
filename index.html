@@ -714,7 +714,7 @@
     ['edR1','edF','edR2','edN','edM','edS'].forEach(id => { $(id).disabled = false; $(id).dataset.keep = ''; $(id).closest('.fld').classList.remove('off'); });
     $('edS').value = a[0]; $('edF').value = a[1]; $('edR1').value = a[4]; $('edR2').value = a[5]; $('edN').value = a[6]; $('edM').value = a[7];
     edDates = [splitDates(a[2]), splitDates(a[3])]; drawDates(0); drawDates(1);
-    const old = String(a[NF]||'').trim();
+    const old = String(a[NF]||'').trim() === String(a[5]||'').trim() ? '' : String(a[NF]||'').trim();
     $('edOld').classList.toggle('hide', !old);
     $('edOld').textContent = old ? 'Remarks entered earlier: ' + old : '';
     showErrors({}); applyDeps();

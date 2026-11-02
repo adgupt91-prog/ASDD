@@ -62,7 +62,8 @@ function complete_(a){
 }
 // Row values R..Z (9 cells, display strings) -> website answer (9 values)
 function fromRow_(v){
-  const a = norm_([v[0], v[1], v[4], v[5], v[6], v[3], v[7], v[8]]);
+  // Column U (reason Form-6 not obtained) is prefilled from the old Remarks (T) when it is still empty
+  const a = norm_([v[0], v[1], v[4], v[5], v[6], str_(v[3]) || str_(v[2]), v[7], v[8]]);
   a.push(str_(v[2]));            // old Remarks (T)
   return a;
 }
@@ -226,20 +227,24 @@ function details_(a){
 
 /* ------------------------------------------------------------------ one-time setup (run once from the editor) */
 // 1) Renames headers R..Z for the new template
-// 2) Changes every old "Not Residing" to "ASDD" and clears its Form-6 "No" (Form-6 applies only to Residing)
-// 3) Sets columns U..Z to plain text so dates / mobile numbers are not auto-converted
+// 2) Changes every old "Not Residing" to "ASDD" (the old Form-6 Yes/No is kept as it was)
+// 3) Copies the old Remarks (T) into "Reason Form-6 not obtained" (U) wherever U is empty
+// 4) Sets columns U..Z to plain text so dates / mobile numbers are not auto-converted
 function setupV2(){
   const sh = sh_(), n = lastRow_(sh) - 1;
   for(const c in HEADERS) sh.getRange(1, Number(c)).setValue(HEADERS[c]);
   const lg = SpreadsheetApp.getActive().getSheetByName(LOG);
   if(lg){ lg.getRange(1, 8).setValue('Old Details'); lg.getRange(1, 11).setValue('New Details'); }
   if(n >= 1){
+    const rs = sh.getRange(2, C.R, n, 4), v = rs.getValues();      // R, S, T, U
+    let changed = 0, copied = 0;
+    for(let i = 0; i < n; i++){
+      if(str_(v[i][0]) === 'Not Residing'){ v[i][0] = 'ASDD'; changed++; }
+      if(str_(v[i][2]) && !str_(v[i][3])){ v[i][3] = str_(v[i][2]); copied++; }
+    }
     sh.getRange(2, C.U, n, 6).setNumberFormat('@');
-    const rs = sh.getRange(2, C.R, n, 2), v = rs.getValues();
-    let changed = 0;
-    for(let i = 0; i < n; i++){ if(str_(v[i][0]) === 'Not Residing'){ v[i][0] = 'ASDD'; v[i][1] = ''; changed++; } }
     rs.setValues(v);
-    Logger.log('Changed ' + changed + ' "Not Residing" rows to ASDD');
+    Logger.log('Changed ' + changed + ' "Not Residing" rows to ASDD; copied ' + copied + ' old Remarks into column U');
   }
   CacheService.getScriptCache().remove('summary_v2');
 }
