@@ -177,6 +177,7 @@
   .fld label{display:block;font-weight:600;font-size:13px;margin-bottom:4px}
   .fld i{color:var(--err);font-style:normal}
   .fld.off i.req{display:none}
+  .fld.nodreq i{display:none}
   .fld select,.fld input[type=text],.fld input[type=tel],.fld textarea{width:100%;font:inherit;font-size:15px;border:1px solid #9aa5b4;border-radius:6px;padding:8px 10px;background:#fff;color:var(--ink);margin:0}
   .fld textarea{resize:vertical;min-height:52px}
   .fld.off label{color:#9aa5b4}
@@ -423,10 +424,10 @@
   // Missing / wrong fields of an answer, keyed by the edit-form field id
   function problems(x){
     const a = norm(x), e = {};
-    if(!a[2]) e.edD1 = 'Add at least one visit date';
-    if(!a[3]) e.edD2 = 'Add at least one visit date';
     if(!a[0]) e.edS = 'Select Residing or ASDD';
     if(a[0]==='Residing'){
+      if(!a[2]) e.edD1 = 'Required when Residing – add at least one visit date';
+      if(!a[3]) e.edD2 = 'Required when Residing – add at least one visit date';
       if(!a[4]) e.edR1 = 'Required when Residing';
       if(!a[1]) e.edF = 'Select Yes or No';
       if(a[1]==='No'){
@@ -524,7 +525,7 @@
       if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
       else{ const needD = rows.filter(r => isSubmitted(r[1]) && !savedComplete(r[1])).length;
-        setMsg(needD ? `${needD} elector(s) need details (visit dates / Residing details) – tap Edit on them, fill and Save.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Tap Edit on an elector to fill the details.', needD ? 'warn' : ''); }
+        setMsg(needD ? `${needD} Residing elector(s) need details (visit dates, reason, Form-6) – tap Edit on them, fill and Save.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Tap Edit on an elector to fill the details.', needD ? 'warn' : ''); }
     }catch(e){ setMsg('Failed to load list: '+e.message,'err'); }
     finally{ $('loader').classList.add('hide'); }
   }
@@ -663,6 +664,7 @@
   }
   function applyDeps(){
     const res = $('edS').value === 'Residing', no = res && $('edF').value === 'No';
+    ['edD1','edD2'].forEach(id => { const f = $(id).closest('.fld'); f.classList.toggle('nodreq', !res); if(!res){ f.classList.remove('bad'); f.querySelector('.ferr').textContent = ''; } });
     setOn('edR1', res); setOn('edF', res); setOn('edR2', no); setOn('edN', no); setOn('edM', no);
   }
   const edValue = () => [$('edS').value, $('edF').value, edDates[0].join(', '), edDates[1].join(', '),
@@ -833,7 +835,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-02-4';
+  const APP_VER = '2026-11-02-5';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
@@ -1111,7 +1113,7 @@
       const res = a[0] ? `<span class="${a[0]==='Residing'?'ans-r':'ans-nr'}">${esc(a[0])}</span>` : na;
       const R = a[0]==='Residing', N = R && a[1]==='No';
       return `<tr class="${ok?'done':''}"><td>${r[0]}</td><td class="l">${esc(r[2])}</td><td>${esc(r[1])}</td><td>${esc(r[3])}</td><td class="l">${esc(r[4])}</td><td>${esc(r[6])}</td>
-        <td>${v(a[2], d)}</td><td><span class="tag ${tagCls(r[9])}">${esc(r[9])}</span></td><td>${v(a[3], d)}</td><td>${res}</td>
+        <td>${a[2] ? esc(a[2]) : R ? v('', true) : na}</td><td><span class="tag ${tagCls(r[9])}">${esc(r[9])}</span></td><td>${a[3] ? esc(a[3]) : R ? v('', true) : na}</td><td>${res}</td>
         <td class="rem-cell">${v(a[4], R)}</td><td>${R ? (a[1] ? '<b>' + esc(a[1]) + '</b>' : v('', true)) : na}</td><td class="rem-cell">${v(a[5], N)}</td><td class="rem-cell">${v(a[6], N)}</td><td>${v(a[7], N)}</td></tr>`; }).join('');
     $('psNone').classList.toggle('hide', list.length > 0);
     $('psShown').textContent = `Showing ${list.length} of ${psRows.length}`;

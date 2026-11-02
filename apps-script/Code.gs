@@ -55,9 +55,9 @@ function norm_(a){
   return a;
 }
 function complete_(a){
-  if(!a[2] || !a[3]) return false;            // both visit-date fields are mandatory
   if(a[0] === 'ASDD') return true;
   if(a[0] !== 'Residing' || !a[4] || !a[1]) return false;
+  if(!a[2] || !a[3]) return false;            // Residing: both visit-date fields are mandatory
   if(a[1] === 'Yes') return true;
   return !!(a[5] && a[6] && MOB_RE.test(a[7]));
 }
