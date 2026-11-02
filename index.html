@@ -222,8 +222,6 @@
       <span class="epicbox"><input type="search" id="q" placeholder="Enter EPIC No" autocomplete="off"><button class="btn-epic" id="qBtn" type="button">Search By EPIC</button></span>
       <span class="ctrl-item"><label for="bloSel">Select Part No.:</label>
         <select id="bloSel"><option value="">-- Select --</option></select></span>
-      <span class="ctrl-item"><label for="markSel">Mark Selected As:</label>
-        <select id="markSel" disabled><option value="">-- Select --</option><option value="ASDD">ASDD</option><option value="Residing">Residing</option></select></span>
     </div>
     <div class="meta" id="partMeta"></div>
   </div>
@@ -240,12 +238,11 @@
 
     <div class="panel frozenbar hide" id="frozenBar"></div>
 
-    <div class="selbar"><label><input type="checkbox" id="selAll"> Select all shown</label><span class="meta" id="selCnt" style="margin:0"></span><span class="meta" id="shown" style="margin:0 0 0 auto"></span></div>
+    <div class="selbar"><span class="meta" id="shown" style="margin:0 0 0 auto"></span></div>
 
     <div class="tablewrap">
       <table id="mainTable">
         <thead><tr>
-          <th class="c-chk"><input type="checkbox" id="selAllH" title="Select all shown"></th>
           <th>District Name</th><th>AC NO</th><th>AC Name</th><th>Name of the Elector</th><th>Epic No.</th>
           <th>Relation Type</th><th>Relation Name</th><th>Part No</th><th>Serial No</th>
           <th>Date(s) of visit by BLO during Enumeration Phase</th>
@@ -488,7 +485,7 @@
       $('bloSel').value = cur ? String(cur.ps) : ''; return;
     }
     const ps = $('bloSel').value;
-    if(!ps){ $('work').classList.add('hide'); $('savebar').style.display='none'; $('partMeta').textContent=''; cur=null; $('markSel').disabled = true; return; }
+    if(!ps){ $('work').classList.add('hide'); $('savebar').style.display='none'; $('partMeta').textContent=''; cur=null; return; }
     cur = blos.find(b => String(b.ps)===ps);
     store.set('asdd_last_ps', ps);
     $('partMeta').textContent = `Part No. ${cur.ps} – ${cur.part} · BLO: ${cur.blo} · ${cur.n} electors in ASDD list`;
@@ -523,9 +520,9 @@
       if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
       else{ const needD = rows.filter(r => isSubmitted(r[1]) && !savedComplete(r[1])).length;
-        setMsg(needD ? `${needD} Residing elector(s) need the new details – tap Edit on them, fill and Save.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Tap Edit on an elector to fill the details, or tick electors and use "Mark Selected As".', needD ? 'warn' : ''); }
+        setMsg(needD ? `${needD} Residing elector(s) need the new details – tap Edit on them, fill and Save.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Tap Edit on an elector to fill the details.', needD ? 'warn' : ''); }
     }catch(e){ setMsg('Failed to load list: '+e.message,'err'); }
-    finally{ $('loader').classList.add('hide'); $('markSel').disabled = !cur; }
+    finally{ $('loader').classList.add('hide'); }
   }
 
   // Freeze was removed (30 Oct) – every PS stays editable. Kept as null so older code paths stay harmless.
@@ -557,9 +554,8 @@
     const res = a[0]==='Residing', no = res && a[1]==='No';
     const stTxt = a[0] ? `<span class="${res?'st-r':'st-a'}">${a[0]}</span>` : '<span class="ans-none">—</span>';
     const tx = rowTxt(epic);
-    const cls = [done?'done':'', dirty.has(epic)?'dirty':'', errEp.has(epic)?'lockerr':'', a[0] && !done ? 'incomplete' : '', selected.has(epic)?'sel':''].join(' ');
+    const cls = [done?'done':'', dirty.has(epic)?'dirty':'', errEp.has(epic)?'lockerr':'', a[0] && !done ? 'incomplete' : ''].join(' ');
     return `<tr data-ep="${epic}" class="${cls}">
-      <td class="c-chk"><input type="checkbox" class="rchk" ${selected.has(epic)?'checked':''} aria-label="Select ${esc(name)}"></td>
       <td class="c-dist">CENTRAL</td><td class="c-acno">24</td><td class="c-acname">PATEL NAGAR</td>
       <td class="c-name">${esc(name)}</td><td>${lblM('EPIC No.')}${epic}</td>
       <td>${lblM('Relation')}${esc(rt)}</td><td>${lblM('Relation Name')}${esc(rn)}</td>
@@ -592,19 +588,12 @@
     $('tb').innerHTML = list.map(rowHtml).join('');
     $('none').classList.toggle('hide', list.length>0);
     $('shown').textContent = `Showing ${list.length} of ${rows.length}`;
-    updateSel();
   }
   function redrawRow(ep){
     const tr = $('tb').querySelector(`tr[data-ep="${ep}"]`); if(!tr) return;
     const r = rows.find(x => x[1]===ep); if(!r) return;
     const t = document.createElement('tbody'); t.innerHTML = rowHtml(r); tr.replaceWith(t.firstElementChild);
   }
-  function updateSel(){
-    const n = selected.size, vis = shownEps.length, visSel = shownEps.filter(ep => selected.has(ep)).length;
-    $('selCnt').textContent = n ? `${n} selected` : '';
-    [$('selAll'), $('selAllH')].forEach(c => { c.checked = vis > 0 && visSel === vis; c.indeterminate = visSel > 0 && visSel < vis; });
-  }
-
   function updateStats(){
     let done=0,res=0,asdd=0,f6=0;
     for(const r of rows){ const a=norm(ans[r[1]]); if(isComplete(ans[r[1]])) done++; if(a[0]==='Residing') res++; if(a[0]==='ASDD') asdd++; if(a[0]==='Residing' && a[1]==='Yes') f6++; }
@@ -612,7 +601,6 @@
     $('sRes').textContent = res; $('sAsdd').textContent = asdd; $('sF6').textContent = f6;
     $('sBar').style.width = (rows.length ? done/rows.length*100 : 0)+'%';
     $('save').disabled = busy || !dirty.size || !hasBackend;
-    $('markSel').disabled = busy || !rows.length;
     $('freeze').disabled = true;
     if(!busy && dirty.size) setMsg(`${dirty.size} unsaved change(s). Tap Submit to save to Google Sheet.`,'warn');
   }
@@ -630,33 +618,6 @@
     const ep = tr.dataset.ep;
     if(e.target.closest('.editlink')){ openEdit(ep); return; }
   });
-  $('tb').addEventListener('change', e => {
-    if(!e.target.classList.contains('rchk')) return;
-    const tr = e.target.closest('tr'), ep = tr.dataset.ep;
-    if(e.target.checked) selected.add(ep); else selected.delete(ep);
-    tr.classList.toggle('sel', e.target.checked); updateSel();
-  });
-  const selectAllShown = on => { shownEps.forEach(ep => on ? selected.add(ep) : selected.delete(ep)); render(); };
-  $('selAll').addEventListener('change', e => selectAllShown(e.target.checked));
-  $('selAllH').addEventListener('change', e => selectAllShown(e.target.checked));
-
-  // "Mark Selected As": sets the status of every ticked elector. ASDD keeps only the visit dates.
-  $('markSel').addEventListener('change', () => {
-    const v = $('markSel').value; if(!v) return;
-    const list = rows.filter(r => selected.has(r[1]));
-    if(!list.length){ alert('First tick the electors (checkbox on the left), then choose "Mark Selected As".'); $('markSel').value = ''; return; }
-    const res = list.filter(r => norm(ans[r[1]])[0]==='Residing').length;
-    const msg = v==='ASDD'
-      ? `Mark ${list.length} selected elector(s) as ASDD?` + (res ? `\n\n${res} of them are now "Residing" – their Residing details will be removed.` : '')
-      : `Mark ${list.length} selected elector(s) as Residing?\n\nFor each of them you must then tap Edit and fill the reason and Form-6 details before they can be submitted.`;
-    if(!confirm(msg)){ $('markSel').value = ''; return; }
-    for(const r of list){ const ep = r[1], keep = ans[ep][NF]; ans[ep] = pad(norm([v, ...ans[ep].slice(1, NF)])); ans[ep][NF] = keep; touch(ep); }
-    selected.clear(); $('markSel').value = '';
-    saveDraft(); render(); updateStats();
-    if(v==='ASDD') setMsg(`${list.length} elector(s) marked ASDD. Review, then tap Submit to save.`,'warn');
-    else setMsg(`${list.length} elector(s) marked Residing – tap Edit on each to fill the details, then Save.`,'warn');
-  });
-
   /* ---------- Edit form (one elector) ---------- */
   let edEp = null, edDates = [[], []];
   const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
@@ -868,7 +829,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-02-1';
+  const APP_VER = '2026-11-02-2';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
