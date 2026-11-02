@@ -211,7 +211,7 @@
     <div class="ctrl-row">
       <label class="ctrl-red" for="fShow">Residing/ Pending List:</label>
       <select id="fShow">
-        <option value="">-- Select --</option>
+        <option value="">All</option>
         <option value="Residing">Residing</option>
         <option value="ASDD">ASDD</option>
         <option value="pending">Pending</option>
@@ -829,7 +829,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-02-2';
+  const APP_VER = '2026-11-02-3';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
