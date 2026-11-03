@@ -208,8 +208,8 @@
   .bulkbar .note{font-size:13px;color:var(--muted);flex:1 1 240px}
   .bulkbtns{display:flex;gap:10px;flex-wrap:wrap}
   .bulkbtns .btn{background:#2f5fad;padding:10px 16px;font-size:14px}
-  .bkmode label{display:flex;gap:8px;align-items:flex-start;font-weight:500;font-size:14px;margin-bottom:8px;cursor:pointer}
-  .bkmode input{margin-top:3px}
+  .bkmode label{display:flex;justify-content:flex-start;gap:10px;align-items:flex-start;text-align:left;font-weight:500;font-size:14px;margin-bottom:8px;cursor:pointer}
+  .bkmode input{margin:3px 0 0;flex:none;width:auto}
   @media (max-width:820px){ .bulkbtns{width:100%} .bulkbtns .btn{flex:1} }
   .oldrem{font-size:12px;background:#fff8e6;border:1px solid #f0d58a;border-radius:6px;padding:6px 8px;margin-bottom:10px;color:#6b4e00}
   @media (max-width: 820px){
@@ -934,7 +934,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-03-8';
+  const APP_VER = '2026-11-03-9';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
