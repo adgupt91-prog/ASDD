@@ -190,11 +190,18 @@
   .chip button{border:0;background:#c9d4ef;color:#2b4a8f;border-radius:50%;width:20px;height:20px;line-height:18px;cursor:pointer;font-weight:700;padding:0}
   .dates input[type=date]{font:inherit;font-size:14px;border:1px solid #9aa5b4;border-radius:6px;padding:5px 8px;margin:0;width:auto}
   .dates .addd{font:inherit;font-size:13px;font-weight:700;border:1px solid var(--teal);color:var(--teal);background:#fff;border-radius:6px;padding:5px 10px;cursor:pointer}
-  /* Desktop: table scrolls inside its own box, so the header row stays frozen at the top
-     and the horizontal scroll bar stays visible at the bottom of the screen */
+  /* Desktop: ONE scroll area for the whole page (the area between the top bar and the save bar).
+     The table has no scroll box of its own, so there is a single vertical scroll bar;
+     the header row still stays frozen at the top while scrolling, and the horizontal
+     scroll bar sits at the bottom of the screen, just above the save bar. */
   @media (min-width: 821px){
-    #work .tablewrap{max-height:calc(100vh - 86px);overscroll-behavior:contain}
-    #adminView .tablewrap{max-height:calc(100vh - 24px);overscroll-behavior:contain}
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .topbar{flex:none}
+    main{flex:1 1 auto;min-height:0;overflow:auto;max-width:none;width:100%;padding-bottom:24px}
+    main>*{max-width:1500px;margin-left:auto;margin-right:auto}
+    .savebar{position:static;flex:none}
+    #work .tablewrap,#adminView .tablewrap{overflow:visible;width:max-content;min-width:100%;max-width:none}
     #work th,#adminView th{box-shadow:inset 0 -1px 0 #2c7a6d}
   }
   .bulkbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -424,6 +431,8 @@
   if(!hasBackend) document.getElementById('cfgBanner').style.display='block';
 
   const $ = id => document.getElementById(id);
+  // On desktop the page scrolls inside <main>, on mobile the window scrolls — reset both
+  const toTop = () => { window.scrollTo(0,0); const m = document.querySelector('main'); if(m) m.scrollTop = 0; };
   // One elector's answer:
   //  0 Status during re-verification (Residing / ASDD)       1 Form-6 obtained (Yes / No)
   //  2 Date(s) of visit – Enumeration phase                  3 Date(s) of visit – Re-verification
@@ -925,7 +934,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-03-6';
+  const APP_VER = '2026-11-03-7';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
@@ -977,7 +986,7 @@
     $('admTitle').textContent = viewer ? `${viewer.name} · PS ${viewer.from}–${viewer.to}` : 'Admin · BLO-wise progress';
     $('admQ').value = ''; $('admF').value = ''; $('admOrd').value = 'asc'; $('admOrd').classList.add('hide'); remSum = null;
     if(on) loadAdmin();
-    window.scrollTo(0,0);
+    toTop();
   }
   $('aeroBtn').addEventListener('click', () => {
     const last = ss.get('asdd_aero'); $('aeroSel').value = last || ''; $('aerr').textContent = '';
@@ -1163,10 +1172,10 @@
   let psCur = null, psRows = [], psSaved = {};
   $('admTb').addEventListener('click', e => { const a = e.target.closest('a.pslink'); if(!a) return; e.preventDefault(); openPS(Number(a.dataset.ps)); });
   function closePS(){ psCur = null; $('admPSView').classList.add('hide'); $('admListView').classList.remove('hide'); }
-  $('psBack').addEventListener('click', () => { closePS(); drawAdmin(); window.scrollTo(0,0); });
+  $('psBack').addEventListener('click', () => { closePS(); drawAdmin(); toTop(); });
   async function openPS(ps){
     psCur = blos.find(b => b.ps === ps); if(!psCur) return;
-    $('admListView').classList.add('hide'); $('admPSView').classList.remove('hide'); window.scrollTo(0,0);
+    $('admListView').classList.add('hide'); $('admPSView').classList.remove('hide'); toTop();
     $('psTitle').textContent = `PS-${psCur.ps} – ${psCur.blo}`;
     $('psMeta').textContent = `Part ${psCur.ps} – ${psCur.part} · ${psCur.n} electors in ASDD list · loading…`;
     $('psTb').innerHTML = ''; $('psStats').innerHTML = '';
