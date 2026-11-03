@@ -352,7 +352,7 @@
     <label><input type="radio" name="bkMode" value="empty" checked> Only electors where this date is not filled yet</label>
     <label><input type="radio" name="bkMode" value="all"> All electors of this PS (replaces dates already filled)</label>
   </div>
-  <div class="row"><button class="btn ghost" type="button" id="bkCancel">Cancel</button><button class="btn" type="submit" id="bkApply">Apply &amp; Submit</button></div>
+  <div class="row"><button class="btn ghost" type="button" id="bkCancel">Cancel</button><button class="btn" type="submit" id="bkApply">Apply</button></div>
 </form></div>
 
 <div class="modal hide" id="edModal"><form class="box edbox" id="edForm" autocomplete="off" novalidate>
@@ -700,8 +700,7 @@
     const noStatus = targets.filter(r => !norm(ans[r[1]])[0]).length;
     for(const r of targets){ const ep = r[1]; ans[ep][idx] = val; errEp.delete(ep); touch(ep); }
     closeBulk(); saveDraft(); render(); updateStats();
-    setMsg(`${bkK ? 'Re-visit' : 'Enumeration'} date ${val} set for ${targets.length} elector(s).` + (noStatus ? ` ${noStatus} of them have no Residing/ASDD yet – use Edit.` : ''), 'warn');
-    submit();
+    setMsg(`${bkK ? 'Re-visit' : 'Enumeration'} date ${val} filled for ${targets.length} elector(s) – NOT saved yet. Check, then tap Submit below.` + (noStatus ? ` ${noStatus} of them have no Residing/ASDD yet – use Edit.` : ''), 'warn');
   });
 
   /* ---------- Edit form (one elector) ---------- */
@@ -919,7 +918,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-03-4';
+  const APP_VER = '2026-11-03-5';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
