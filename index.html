@@ -159,6 +159,8 @@
   .selbar label{font-weight:600;display:flex;gap:6px;align-items:center;cursor:pointer}
   #mainTable th{font-size:12px;line-height:1.25;min-width:70px}
   #mainTable td{font-size:13px}
+  #mainTable td.c-sn{font-weight:700;min-width:44px}
+  #work td.c-sn .lbl-m{display:inline;margin-right:4px}
   #mainTable td.c-chk,#mainTable th.c-chk{min-width:34px;width:34px}
   #mainTable td.c-long{min-width:150px;max-width:220px;white-space:normal;word-break:break-word}
   #mainTable td.c-date{min-width:96px;font-size:12px}
@@ -244,7 +246,7 @@
     <div class="tablewrap">
       <table id="mainTable">
         <thead><tr>
-          <th>District Name</th><th>AC NO</th><th>AC Name</th><th>Name of the Elector</th><th>Epic No.</th>
+          <th>S.No.</th><th>District Name</th><th>AC NO</th><th>AC Name</th><th>Name of the Elector</th><th>Epic No.</th>
           <th>Relation Type</th><th>Relation Name</th><th>Part No</th><th>Serial No</th>
           <th>Date(s) of visit by BLO during Enumeration Phase</th>
           <th>Status of Elector in the ASDD List</th>
@@ -561,7 +563,7 @@
     const tx = rowTxt(epic);
     const cls = [done?'done':'', dirty.has(epic)?'dirty':'', errEp.has(epic)?'lockerr':'', a[0] && !done ? 'incomplete' : ''].join(' ');
     return `<tr data-ep="${epic}" class="${cls}">
-      <td class="c-dist">CENTRAL</td><td class="c-acno">24</td><td class="c-acname">PATEL NAGAR</td>
+      <td class="c-sn">${lblM('S.No.')}${esc(sn)}</td><td class="c-dist">CENTRAL</td><td class="c-acno">24</td><td class="c-acname">PATEL NAGAR</td>
       <td class="c-name">${esc(name)}</td><td>${lblM('EPIC No.')}${epic}</td>
       <td>${lblM('Relation')}${esc(rt)}</td><td>${lblM('Relation Name')}${esc(rn)}</td>
       <td>${lblM('Part No')}${esc(op)}</td><td>${lblM('Serial No')}${esc(os)}</td>
@@ -834,7 +836,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-03-1';
+  const APP_VER = '2026-11-03-2';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
