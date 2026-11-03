@@ -201,7 +201,7 @@
     main{flex:1 1 auto;min-height:0;overflow:auto;max-width:none;width:100%;padding-bottom:24px}
     main>*{max-width:1500px;margin-left:auto;margin-right:auto}
     .savebar{position:static;flex:none}
-    #work .tablewrap,#adminView .tablewrap{overflow:visible;width:max-content;min-width:100%;max-width:none}
+    #work .tablewrap,#adminView .tablewrap{overflow:visible;width:fit-content;min-width:100%;max-width:none}
     #work th,#adminView th{box-shadow:inset 0 -1px 0 #2c7a6d}
   }
   .bulkbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -934,7 +934,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-03-7';
+  const APP_VER = '2026-11-03-8';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
