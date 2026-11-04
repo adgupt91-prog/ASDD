@@ -188,7 +188,8 @@
   .dates{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
   .chip{display:inline-flex;align-items:center;gap:4px;background:#e2e8f8;color:#2b4a8f;border-radius:14px;padding:3px 4px 3px 10px;font-size:13px;font-weight:600}
   .chip button{border:0;background:#c9d4ef;color:#2b4a8f;border-radius:50%;width:20px;height:20px;line-height:18px;cursor:pointer;font-weight:700;padding:0}
-  .dates input[type=date]{font:inherit;font-size:14px;border:1px solid #9aa5b4;border-radius:6px;padding:5px 8px;margin:0;width:auto}
+  .dates input[type=date]{font:inherit;font-size:16px;border:1px solid #2f5fad;border-radius:6px;padding:6px 8px;margin:0;width:auto;min-width:150px;min-height:38px;background:#fff;color:var(--ink);-webkit-appearance:none;appearance:none}
+  .dates input[type=date].picked{border-color:var(--done-ink);background:#eef8f1}
   .dates .addd{font:inherit;font-size:13px;font-weight:700;border:1px solid var(--teal);color:var(--teal);background:#fff;border-radius:6px;padding:5px 10px;cursor:pointer}
   /* Desktop: ONE scroll area for the whole page (the area between the top bar and the save bar).
      The table has no scroll box of its own, so there is a single vertical scroll bar;
@@ -674,19 +675,24 @@
     const box = $('bkD');
     box.innerHTML = (bkDates.length ? '' : '<span class="meta" style="margin:0">No date added</span>')
       + bkDates.map((d,i) => `<span class="chip">${esc(d)}<button type="button" data-i="${i}" title="Remove">×</button></span>`).join('')
-      + (bkDates.length < 10 ? `<input type="date" max="${todayISO()}" aria-label="Add a visit date"><button type="button" class="addd">+ Add date</button>` : '');
+      + (bkDates.length < 10 ? `<input type="date" min="2025-01-01" max="${todayISO()}" aria-label="Pick a visit date"><button type="button" class="addd">+ Add date</button>` : '');
   }
   function addBk(){
     const inp = $('bkD').querySelector('input[type=date]'); if(!inp || !inp.value) return;
-    if(inp.value > todayISO()){ alert('A visit date cannot be in the future.'); inp.value=''; return; }
+    if(inp.value > todayISO()){ alert('A visit date cannot be in the future.'); inp.value=''; inp.classList.remove('picked'); return; }
+    if(inp.value < '2025-01-01'){ alert('Please pick a date from 2025 onwards.'); inp.value=''; inp.classList.remove('picked'); return; }
     const d = isoToDMY(inp.value);
     if(!bkDates.includes(d)){ bkDates.push(d); bkDates.sort((a,b) => dmyKey(a) < dmyKey(b) ? -1 : 1); }
     $('bkErr').textContent = ''; $('bkD').closest('.fld').classList.remove('bad'); drawBk();
   }
-  $('bkD').addEventListener('change', e => { if(e.target.matches('input[type=date]')) addBk(); });
+  // Date is added when the picker is closed (iPhone "Done" / Android "OK" / clicking away) or with "+ Add date".
+  // Not on 'change': on iPhone 'change' fires while the wheel is still turning, which closed the picker early.
+  let bkLast = 0;
+  $('bkD').addEventListener('focusout', e => { if(e.target.matches('input[type=date]') && e.target.value){ bkLast = Date.now(); setTimeout(addBk, 0); } });
+  $('bkD').addEventListener('change', e => { if(e.target.matches('input[type=date]')) e.target.classList.toggle('picked', !!e.target.value); });
   $('bkD').addEventListener('click', e => {
     const b = e.target.closest('button'); if(!b) return;
-    if(b.classList.contains('addd')){ const inp = $('bkD').querySelector('input[type=date]'); if(inp.value) addBk(); else if(inp.showPicker) try{ inp.showPicker(); }catch(_){ inp.focus(); } else inp.focus(); return; }
+    if(b.classList.contains('addd')){ if(Date.now() - bkLast < 600) return; const inp = $('bkD').querySelector('input[type=date]'); if(inp.value) addBk(); else openPicker(inp); return; }
     bkDates.splice(+b.dataset.i, 1); drawBk();
   });
   function openBulk(k){
@@ -721,6 +727,8 @@
 
   /* ---------- Edit form (one elector) ---------- */
   let edEp = null, edDates = [[], []];
+  let edLast = 0;
+  function openPicker(inp){ try{ if(inp.showPicker){ inp.showPicker(); return; } }catch(_){} inp.focus(); inp.click(); }
   const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
   const isoToDMY = s => { const [y,m,d] = s.split('-'); return `${d}-${m}-${y}`; };
   const dmyKey = s => { const m = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/.exec(s.trim()); return m ? m[3] + m[2].padStart(2,'0') + m[1].padStart(2,'0') : s; };
@@ -728,22 +736,24 @@
   function drawDates(k){
     const box = $(k ? 'edD2' : 'edD1');
     box.innerHTML = edDates[k].map((d,i) => `<span class="chip">${esc(d)}<button type="button" data-k="${k}" data-i="${i}" title="Remove">×</button></span>`).join('')
-      + (edDates[k].length < 10 ? `<input type="date" data-k="${k}" max="${todayISO()}" aria-label="Add a visit date"><button type="button" class="addd" data-k="${k}">+ Add date</button>` : '');
+      + (edDates[k].length < 10 ? `<input type="date" data-k="${k}" min="2025-01-01" max="${todayISO()}" aria-label="Pick a visit date"><button type="button" class="addd" data-k="${k}">+ Add date</button>` : '');
     if(!edDates[k].length) box.insertAdjacentHTML('afterbegin', '<span class="meta" style="margin:0">No date added</span>');
   }
   function addDate(k){
     const inp = $(k ? 'edD2' : 'edD1').querySelector('input[type=date]'); if(!inp || !inp.value) return;
-    if(inp.value > todayISO()){ alert('A visit date cannot be in the future.'); inp.value=''; return; }
+    if(inp.value > todayISO()){ alert('A visit date cannot be in the future.'); inp.value=''; inp.classList.remove('picked'); return; }
+    if(inp.value < '2025-01-01'){ alert('Please pick a date from 2025 onwards.'); inp.value=''; inp.classList.remove('picked'); return; }
     const d = isoToDMY(inp.value);
     if(!edDates[k].includes(d)){ edDates[k].push(d); edDates[k].sort((a,b) => dmyKey(a) < dmyKey(b) ? -1 : 1); }
     drawDates(k);
   }
   ['edD1','edD2'].forEach(id => {
-    $(id).addEventListener('change', e => { if(e.target.matches('input[type=date]')) addDate(+e.target.dataset.k); });
+    $(id).addEventListener('focusout', e => { if(e.target.matches('input[type=date]') && e.target.value){ const k = +e.target.dataset.k; edLast = Date.now(); setTimeout(() => addDate(k), 0); } });
+    $(id).addEventListener('change', e => { if(e.target.matches('input[type=date]')) e.target.classList.toggle('picked', !!e.target.value); });
     $(id).addEventListener('click', e => {
       const b = e.target.closest('button'); if(!b) return;
       const k = +b.dataset.k;
-      if(b.classList.contains('addd')){ const inp = $(id).querySelector('input[type=date]'); if(inp.value) addDate(k); else if(inp.showPicker) try{ inp.showPicker(); }catch(_){ inp.focus(); } else inp.focus(); return; }
+      if(b.classList.contains('addd')){ if(Date.now() - edLast < 600) return; const inp = $(id).querySelector('input[type=date]'); if(inp.value) addDate(k); else openPicker(inp); return; }
       edDates[k].splice(+b.dataset.i, 1); drawDates(k);
     });
   });
@@ -934,7 +944,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-03-9';
+  const APP_VER = '2026-11-04-1';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
