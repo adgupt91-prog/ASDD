@@ -310,7 +310,7 @@
         <option value="">Re-verification progress</option>
       </select>
       <input type="search" id="admQ" placeholder="Search PS no., BLO or part name">
-      <select id="admF"><option value="">All BLOs</option><option value="zero">Not started</option><option value="part">In progress</option><option value="full">Completed 100%</option></select>
+      <select id="admF"><option value="">All BLOs</option><option value="zero">Not started</option><option value="part">In progress</option><option value="pzero">In Progress (ZERO)</option><option value="full">Completed 100%</option></select>
       <select id="admOrd" class="hide" title="Order of In-progress BLOs (also used in the PDF)">
         <option value="asc">Progress: Ascending (lowest first)</option>
         <option value="desc">Progress: Descending (highest first)</option>
@@ -947,7 +947,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-05-5';
+  const APP_VER = '2026-11-05-6';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
@@ -1106,7 +1106,9 @@
     // Normal mode: "Not started" = BLO has not filled even one field of any elector; "In progress" = something filled, not all complete
     const begun = b => admMode ? b[K.d] : b.started;
     return inScope(admList).filter(b => (!q || String(b.ps)===q || b.blo.toUpperCase().includes(q) || b.part.toUpperCase().includes(q))
-      && (!f || (f==='zero' && !begun(b) && b[K.n] > 0) || (f==='part' && begun(b) && b[K.d]<b[K.n]) || (f==='full' && b[K.d]>=b[K.n])))
+      && (!f || (f==='zero' && !begun(b) && b[K.n] > 0) || (f==='part' && begun(b) && b[K.d]<b[K.n])
+          || (f==='pzero' && !admMode && b.started && !b.done && b.n > 0)   // In Progress (ZERO): started, but 0 completed
+          || (f==='full' && b[K.d]>=b[K.n])))
       .sort((a,b) => {
         if(f==='part'){ const d = (a[K.p] - b[K.p]) * ($('admOrd').value==='desc' ? -1 : 1); return d || a.ps - b.ps; }
         const x=a[admSort], y=b[admSort]; return (x>y?1:x<y?-1:0) * (admAsc?1:-1); });
@@ -1127,8 +1129,10 @@
     const k = th.dataset.s; admAsc = admSort===k ? !admAsc : true; admSort = k; drawAdmin(); });
   $('admMode').addEventListener('change', () => {
     admMode = $('admMode').value; admSort = 'ps'; admAsc = true;
-    const lbl = admMode ? ['All BLOs','Remarks not started','Remarks in progress','Remarks 100% done'] : ['All BLOs','Not started','In progress','Completed 100%'];
+    const lbl = admMode ? ['All BLOs','Remarks not started','Remarks in progress','','Remarks 100% done'] : ['All BLOs','Not started','In progress','In Progress (ZERO)','Completed 100%'];
     [...$('admF').options].forEach((o, i) => o.textContent = lbl[i]);
+    const pz = $('admF').querySelector('option[value=pzero]'); pz.hidden = pz.disabled = !!admMode;   // only for normal progress
+    if(admMode && $('admF').value === 'pzero') $('admF').value = '';
     if(admMode && !remSum) loadAdmin(); else buildAdmList();
   });
   // Ascending/Descending option appears only for "In progress" BLOs
@@ -1181,7 +1185,7 @@
         didDrawPage: () => { doc.setFontSize(8); doc.setTextColor(120);
           doc.text('Page ' + doc.internal.getNumberOfPages(), W - 24, H - 14, { align:'right' }); doc.setTextColor(0); }
       });
-      const d = new Date(), tag = { '':'All', zero:'Not_started', part:'In_progress', full:'Completed' }[$('admF').value];
+      const d = new Date(), tag = { '':'All', zero:'Not_started', part:'In_progress', pzero:'In_progress_ZERO', full:'Completed' }[$('admF').value];
       doc.save(`${R ? 'Remarks_' : ''}BLOs_${tag}${viewer ? '_PS' + viewer.from + '-' + viewer.to : ''}_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.pdf`);
     }catch(e){ alert('Could not make the PDF: ' + e.message); }
     finally{ btn.disabled = false; btn.textContent = old; }
