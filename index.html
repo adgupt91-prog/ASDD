@@ -360,7 +360,7 @@
 <div class="modal hide" id="bkModal"><form class="box edbox" id="bkForm" autocomplete="off" novalidate>
   <h3 id="bkTitle">Set date for all electors</h3>
   <div class="edinfo" id="bkInfo"></div>
-  <div class="fld"><label id="bkLbl">Date(s) of visit</label>
+  <div class="fld"><label id="bkLbl">Date of visit</label>
     <div class="dates" id="bkD"></div>
     <div class="ferr" id="bkErr"></div></div>
   <div class="fld bkmode">
@@ -374,10 +374,10 @@
   <h3 id="edTitle">Edit</h3>
   <div class="edinfo" id="edInfo"></div>
 
-  <div class="fld"><label>Date(s) of visit by BLO during Enumeration Phase <i>*</i></label>
+  <div class="fld"><label>Date of visit by BLO during Enumeration Phase <i>*</i> <span class="meta" style="margin:0">(one date only)</span></label>
     <div class="dates" id="edD1"></div>
     <div class="ferr" data-for="edD1"></div></div>
-  <div class="fld"><label>Date(s) of visit by BLO during Re-verification <i>*</i></label>
+  <div class="fld"><label>Date of visit by BLO during Re-verification <i>*</i> <span class="meta" style="margin:0">(one date only)</span></label>
     <div class="dates" id="edD2"></div>
     <div class="ferr" data-for="edD2"></div></div>
 
@@ -469,8 +469,10 @@
   // Missing / wrong fields of an answer, keyed by the edit-form field id
   function problems(x){
     const a = norm(x), e = {};
-    if(!a[2]) e.edD1 = 'Required – add at least one visit date';
-    if(!a[3]) e.edD2 = 'Required – add at least one visit date';
+    if(!a[2]) e.edD1 = 'Required – add the visit date';
+    else if(a[2].includes(',')) e.edD1 = 'Only one date allowed – remove the extra date(s)';
+    if(!a[3]) e.edD2 = 'Required – add the visit date';
+    else if(a[3].includes(',')) e.edD2 = 'Only one date allowed – remove the extra date(s)';
     if(!a[0]) e.edS = 'Select Residing or ASDD';
     if(a[0]==='Residing'){
       if(!a[4]) e.edR1 = 'Required when Residing';
@@ -675,14 +677,14 @@
     const box = $('bkD');
     box.innerHTML = (bkDates.length ? '' : '<span class="meta" style="margin:0">No date added</span>')
       + bkDates.map((d,i) => `<span class="chip">${esc(d)}<button type="button" data-i="${i}" title="Remove">×</button></span>`).join('')
-      + (bkDates.length < 10 ? `<input type="date" min="2025-01-01" max="${todayISO()}" aria-label="Pick a visit date"><button type="button" class="addd">+ Add date</button>` : '');
+      + `<input type="date" min="2025-01-01" max="${todayISO()}" aria-label="Pick the visit date"><button type="button" class="addd">${bkDates.length ? 'Change date' : '+ Add date'}</button>`;
   }
   function addBk(){
     const inp = $('bkD').querySelector('input[type=date]'); if(!inp || !inp.value) return;
     if(inp.value > todayISO()){ alert('A visit date cannot be in the future.'); inp.value=''; inp.classList.remove('picked'); return; }
     if(inp.value < '2025-01-01'){ alert('Please pick a date from 2025 onwards.'); inp.value=''; inp.classList.remove('picked'); return; }
     const d = isoToDMY(inp.value);
-    if(!bkDates.includes(d)){ bkDates.push(d); bkDates.sort((a,b) => dmyKey(a) < dmyKey(b) ? -1 : 1); }
+    bkDates = [d];                                   // only one date allowed – a new pick replaces the old one
     $('bkErr').textContent = ''; $('bkD').closest('.fld').classList.remove('bad'); drawBk();
   }
   // Date is added when the picker is closed (iPhone "Done" / Android "OK" / clicking away) or with "+ Add date".
@@ -698,7 +700,7 @@
   function openBulk(k){
     if(!cur || !rows.length || busy) return;
     bkK = k; bkDates = [];
-    const name = k ? 'Date(s) of visit by BLO during Re-verification' : 'Date(s) of visit by BLO during Enumeration Phase';
+    const name = k ? 'Date of visit by BLO during Re-verification' : 'Date of visit by BLO during Enumeration Phase';
     const empty = rows.filter(r => !norm(ans[r[1]])[k ? 3 : 2]).length;
     $('bkTitle').textContent = k ? 'Date of Re-visit – all electors' : 'Date of Enumeration – all electors';
     $('bkLbl').textContent = name;
@@ -715,8 +717,8 @@
   $('bkForm').addEventListener('submit', e => {
     e.preventDefault();
     addBk();
-    if(!bkDates.length){ $('bkErr').textContent = 'Add at least one date'; $('bkD').closest('.fld').classList.add('bad'); return; }
-    const idx = bkK ? 3 : 2, val = bkDates.join(', '), all = document.querySelector('input[name=bkMode]:checked').value === 'all';
+    if(!bkDates.length){ $('bkErr').textContent = 'Add the date'; $('bkD').closest('.fld').classList.add('bad'); return; }
+    const idx = bkK ? 3 : 2, val = bkDates[bkDates.length - 1], all = document.querySelector('input[name=bkMode]:checked').value === 'all';
     const targets = rows.filter(r => all || !norm(ans[r[1]])[idx]);
     if(!targets.length){ $('bkErr').textContent = 'All electors already have this date. Choose "All electors" to replace it.'; return; }
     const noStatus = targets.filter(r => !norm(ans[r[1]])[0]).length;
@@ -736,7 +738,7 @@
   function drawDates(k){
     const box = $(k ? 'edD2' : 'edD1');
     box.innerHTML = edDates[k].map((d,i) => `<span class="chip">${esc(d)}<button type="button" data-k="${k}" data-i="${i}" title="Remove">×</button></span>`).join('')
-      + (edDates[k].length < 10 ? `<input type="date" data-k="${k}" min="2025-01-01" max="${todayISO()}" aria-label="Pick a visit date"><button type="button" class="addd" data-k="${k}">+ Add date</button>` : '');
+      + (edDates[k].length <= 1 ? `<input type="date" data-k="${k}" min="2025-01-01" max="${todayISO()}" aria-label="Pick the visit date"><button type="button" class="addd" data-k="${k}">${edDates[k].length ? 'Change date' : '+ Add date'}</button>` : '');
     if(!edDates[k].length) box.insertAdjacentHTML('afterbegin', '<span class="meta" style="margin:0">No date added</span>');
   }
   function addDate(k){
@@ -744,7 +746,7 @@
     if(inp.value > todayISO()){ alert('A visit date cannot be in the future.'); inp.value=''; inp.classList.remove('picked'); return; }
     if(inp.value < '2025-01-01'){ alert('Please pick a date from 2025 onwards.'); inp.value=''; inp.classList.remove('picked'); return; }
     const d = isoToDMY(inp.value);
-    if(!edDates[k].includes(d)){ edDates[k].push(d); edDates[k].sort((a,b) => dmyKey(a) < dmyKey(b) ? -1 : 1); }
+    edDates[k] = [d];                                // only one date allowed – a new pick replaces the old one
     drawDates(k);
   }
   ['edD1','edD2'].forEach(id => {
