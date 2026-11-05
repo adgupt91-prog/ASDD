@@ -56,7 +56,6 @@ function norm_(a){
 }
 function complete_(a){
   if(!a[2] || !a[3]) return false;            // both visit-date fields are mandatory (ASDD and Residing)
-  if(a[2].indexOf(',') >= 0 || a[3].indexOf(',') >= 0) return false;   // only one date per field
   if(a[0] === 'ASDD') return true;
   if(a[0] !== 'Residing' || !a[4] || !a[1]) return false;
   if(a[1] === 'Yes') return true;
