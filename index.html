@@ -570,10 +570,10 @@
         return;
       }
       render(); updateStats();
-      if(sv && sv.ok===false) setMsg('Could not read saved data from Google Sheet — check internet and tap "Reload from sheet".','err');
+      if(sv && sv.ok===false) setMsg('Could not read saved data from the server — check internet and tap "Reload from sheet".','err');
       else if(dirty.size) setMsg(`${dirty.size} unsaved change(s) restored from this device. Tap Submit to save.`,'warn');
       else{ const needD = rows.filter(r => isSubmitted(r[1]) && !savedComplete(r[1])).length;
-        setMsg(needD ? `${needD} elector(s) need details (visit dates${''}, and reason / Form-6 for Residing) – tap Edit on them, fill and Save.` : Object.keys(saved).length ? 'Saved answers loaded from Google Sheet.' : 'Tap Edit on an elector to fill the details.', needD ? 'warn' : ''); }
+        setMsg(needD ? `${needD} elector(s) need details (visit dates${''}, and reason / Form-6 for Residing) – tap Edit on them, fill and Save.` : Object.keys(saved).length ? 'Saved answers loaded.' : 'Tap Edit on an elector to fill the details.', needD ? 'warn' : ''); }
     }catch(e){ setMsg('Failed to load list: '+e.message,'err'); }
     finally{ $('loader').classList.add('hide'); }
   }
@@ -656,7 +656,7 @@
     $('save').disabled = busy || !dirty.size || !hasBackend;
     $('bulkD1').disabled = $('bulkD2').disabled = busy || !rows.length;
     $('freeze').disabled = true;
-    if(!busy && dirty.size) setMsg(`${dirty.size} unsaved change(s). Tap Submit to save to Google Sheet.`,'warn');
+    if(!busy && dirty.size) setMsg(`${dirty.size} unsaved change(s). Tap Submit to save.`,'warn');
   }
 
   function saveDraft(){
@@ -845,7 +845,7 @@
       list.forEach(r => { const ep = r[1]; truth[ep] = skip.has(ep) ? undefined : sent[ep]; });
     }else{
       // Save failed or the reply was lost – ask the sheet directly before telling the BLO anything.
-      setMsg('Checking with Google Sheet whether your data was saved…','warn');
+      setMsg('Checking with the server whether your data was saved…','warn');
       const sv = await backendGet(`${URL_}?action=get&ps=${cur.ps}`).catch(() => null);
       if(sv && sv.ok){ truth = {}; list.forEach(r => { const x = sv.data && sv.data[r[1]]; truth[r[1]] = x && x[0] ? pad(x) : undefined; }); }
     }
@@ -877,7 +877,7 @@
   }
   function resultMsg(r, half){
     const parts = [];
-    if(r.saved)  parts.push(`✓ ${r.saved} elector(s) SAVED to Google Sheet`);
+    if(r.saved)  parts.push(`✓ ${r.saved} elector(s) SAVED`);
     if(r.failed) parts.push(`✗ ${r.failed} elector(s) NOT saved – please tap Submit again`);
     if(r.taken)  parts.push(`✗ ${r.taken} elector(s) NOT updated – sheet has a different answer, tap "Reload from sheet"`);
     if(half)     parts.push(`${half} elector(s) without Residing/ASDD not submitted`);
@@ -947,7 +947,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-05-2';
+  const APP_VER = '2026-11-05-3';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
@@ -1066,7 +1066,7 @@
         try{ remSum = await loadRemSum(); } finally{ remBusy = false; }
       }
       $('admMsg').textContent = 'Updated ' + new Date().toLocaleTimeString();
-    }catch(e){ $('admMsg').textContent = 'Could not read Google Sheet: ' + e.message; }
+    }catch(e){ $('admMsg').textContent = 'Could not read data: ' + e.message; }
     buildAdmList();
   }
   function buildAdmList(){
@@ -1204,14 +1204,14 @@
       if(!psCur || psCur.ps !== ps) return;
       if(!sv.ok) throw new Error(sv.error || 'Server error');
       psRows = data; psSaved = {}; for(const ep in (sv.data || {})) psSaved[ep] = norm(sv.data[ep]);
-      $('psMeta').textContent = `Part ${psCur.ps} – ${psCur.part} · live from Google Sheet at ${new Date().toLocaleTimeString()}`;
+      $('psMeta').textContent = `Part ${psCur.ps} – ${psCur.part} · live from database at ${new Date().toLocaleTimeString()}`;
       const done = psRows.filter(r => isDone(r[1])), cnt = (k, v) => done.filter(r => psSaved[r[1]][k] === v).length;
       $('psStats').innerHTML = [
         ['Total electors', psRows.length], ['Submitted', `${done.length} (${psRows.length ? (done.length/psRows.length*100).toFixed(0) : 0}%)`],
         ['Pending', psRows.length - done.length], ['Residing', cnt(0,'Residing')], ['ASDD', cnt(0,'ASDD')], ['Form-6 Yes', cnt(1,'Yes')], ['Details complete', done.filter(r => isComplete(psSaved[r[1]])).length]
       ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
       drawPS();
-    }catch(e){ $('psMeta').textContent = 'Could not read Google Sheet: ' + e.message + ' – tap Refresh to try again.'; }
+    }catch(e){ $('psMeta').textContent = 'Could not read data: ' + e.message + ' – tap Refresh to try again.'; }
   }
   const isDone = ep => !!(psSaved[ep] && psSaved[ep][0]);
   function psFiltered(){
