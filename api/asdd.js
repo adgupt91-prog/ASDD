@@ -44,13 +44,23 @@ function pool(){
       connectString: connectString(),
       walletContent: fixPem(process.env.ORACLE_WALLET_PEM),
       walletPassword: process.env.ORACLE_WALLET_PASSWORD,
-      poolMin: 0, poolMax: 3, poolIncrement: 1, poolTimeout: 60, queueTimeout: 20000
+      connectTimeout: 15, poolMin: 0, poolMax: 3, poolIncrement: 1, poolTimeout: 60, queueTimeout: 20000, poolPingInterval: 30
     }).catch(e => { poolPromise = null; throw e; });
   }
   return poolPromise;
 }
+async function getConn(){
+  try{ return await (await pool()).getConnection(); }
+  catch(e){
+    // A pool that cannot connect (e.g. it was created while the database was starting) is thrown away,
+    // and one fresh direct connection is tried before giving up.
+    const old = poolPromise; poolPromise = null;
+    if(old) old.then(p => p.close(0)).catch(() => {});
+    return await (await pool()).getConnection();
+  }
+}
 async function withConn(fn){
-  const c = await (await pool()).getConnection();
+  const c = await getConn();
   try{ return await fn(c); } finally{ try{ await c.close(); }catch(_){} }
 }
 
