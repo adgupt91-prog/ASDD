@@ -1,0 +1,8 @@
+{
+  "name": "asdd-reverification",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "oracledb": "^6.10.0"
+  }
+}

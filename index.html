@@ -428,7 +428,7 @@
 <script>
 (function(){
   const URL_ = (window.SCRIPT_URL||'').trim();
-  const hasBackend = /^https:\/\/script\.google(usercontent)?\.com\//.test(URL_);
+  const hasBackend = /^https:\/\/script\.google(usercontent)?\.com\//.test(URL_) || /^\/api\//.test(URL_);   // Google Sheet script or the Oracle API
   if(!hasBackend) document.getElementById('cfgBanner').style.display='block';
 
   const $ = id => document.getElementById(id);
@@ -947,7 +947,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-05-1';
+  const APP_VER = '2026-11-05-2';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
