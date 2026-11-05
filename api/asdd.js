@@ -110,6 +110,7 @@ const DDL = [
      enum_dates     VARCHAR2(1000), reverif_dates VARCHAR2(1000), reason_ef VARCHAR2(1000),
      refused_name   VARCHAR2(1000), refused_mobile VARCHAR2(100))`,
   `CREATE INDEX IF NOT EXISTS asdd_elector_ps ON asdd_elector (ps)`,
+  `CREATE INDEX IF NOT EXISTS asdd_elector_status ON asdd_elector (status, ps)`,
   `CREATE TABLE IF NOT EXISTS asdd_edit_log (
      id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
      at TIMESTAMP DEFAULT SYSTIMESTAMP, ps VARCHAR2(20), blo VARCHAR2(200), epic VARCHAR2(30), name VARCHAR2(300),
@@ -131,10 +132,48 @@ async function getPS(ps){
   });
 }
 
+// Per-PS counts, worked out inside the database (one small result instead of 80k rows).
+// Same rules as complete(): both visit dates; ASDD done; Residing needs reason EF + Form-6, and for Form-6 No
+// also reason (or old remarks), refused-by name and a valid 10-digit mobile.
+const SUMMARY_SQL = `
+  WITH e AS (
+    SELECT ps,
+           CASE WHEN TRIM(status) IN ('ASDD','Not Residing') THEN 'ASDD' WHEN TRIM(status) = 'Residing' THEN 'Residing' END st,
+           CASE WHEN TRIM(form6) IN ('Yes','No') THEN TRIM(form6) END f6,
+           enum_dates, reverif_dates, reason_ef, NVL(TRIM(reason_no_f6), old_remarks) rsn, refused_name,
+           REGEXP_REPLACE(refused_mobile, '[^0-9]', '') mob
+    FROM asdd_elector WHERE status IS NOT NULL)
+  SELECT ps,
+         SUM(CASE WHEN TRIM(enum_dates) IS NOT NULL AND TRIM(reverif_dates) IS NOT NULL AND (
+                     st = 'ASDD'
+                  OR (st = 'Residing' AND TRIM(reason_ef) IS NOT NULL AND f6 = 'Yes')
+                  OR (st = 'Residing' AND TRIM(reason_ef) IS NOT NULL AND f6 = 'No' AND TRIM(rsn) IS NOT NULL
+                      AND TRIM(refused_name) IS NOT NULL AND REGEXP_LIKE(SUBSTR(mob, 1, 10), '^[6-9][0-9]{9}$')))
+             THEN 1 ELSE 0 END) done,
+         SUM(CASE WHEN st = 'Residing' THEN 1 ELSE 0 END) residing,
+         SUM(CASE WHEN st = 'ASDD' THEN 1 ELSE 0 END) not_residing,
+         SUM(CASE WHEN st = 'Residing' AND f6 = 'Yes' THEN 1 ELSE 0 END) f6yes,
+         SUM(CASE WHEN st = 'Residing' AND f6 = 'No' THEN 1 ELSE 0 END) f6no
+  FROM e WHERE st IS NOT NULL AND ps IS NOT NULL GROUP BY ps`;
+
 let sumCache = null, sumAt = 0;
 async function summary(){
   if(sumCache && Date.now() - sumAt < 30000) return sumCache;
   const res = await withConn(async c => {
+    const r = await c.execute(SUMMARY_SQL);
+    const data = {};
+    for(const row of r.rows)
+      data[str(row.PS)] = { done: row.DONE, residing: row.RESIDING, notResiding: row.NOT_RESIDING, f6yes: row.F6YES, f6no: row.F6NO, frozen:false };
+    return { ok:true, data };
+  });
+  sumCache = res; sumAt = Date.now();
+  return res;
+}
+
+// Old way (all rows into JS) – kept only to cross-check the SQL version: ?action=summarycheck
+async function summaryCheck(){
+  const fast = (sumCache = null, await summary()).data;
+  const slow = await withConn(async c => {
     const r = await c.execute(`SELECT ps, ${ANS_COLS} FROM asdd_elector WHERE status IS NOT NULL`);
     const data = {};
     for(const row of r.rows){
@@ -144,10 +183,13 @@ async function summary(){
       if(a[0] === 'Residing'){ o.residing++; if(a[1] === 'Yes') o.f6yes++; else if(a[1] === 'No') o.f6no++; }
       else o.notResiding++;
     }
-    return { ok:true, data };
+    return data;
   });
-  sumCache = res; sumAt = Date.now();
-  return res;
+  const diffs = [];
+  for(const ps of new Set([...Object.keys(fast), ...Object.keys(slow)]))
+    for(const k of ['done','residing','notResiding','f6yes','f6no'])
+      if((fast[ps] || {})[k] !== (slow[ps] || {})[k]) diffs.push({ ps, k, sql: (fast[ps] || {})[k], js: (slow[ps] || {})[k] });
+  return { ok:true, match: !diffs.length, psCount: Object.keys(fast).length, diffs: diffs.slice(0, 20) };
 }
 
 async function resAll(){
@@ -311,6 +353,26 @@ async function fixDates(){
   });
 }
 
+/* ------------------------------------------------------------------ indexes */
+// Creates the indexes the site's queries use (skips any that already exist) and refreshes table statistics.
+async function optimize(){
+  return withConn(async c => {
+    const want = {
+      ASDD_ELECTOR_STATUS: 'CREATE INDEX asdd_elector_status ON asdd_elector (status, ps)',
+      ASDD_EDIT_LOG_EPIC:  'CREATE INDEX asdd_edit_log_epic ON asdd_edit_log (epic, at)',
+      ASDD_EDIT_LOG_AT:    'CREATE INDEX asdd_edit_log_at ON asdd_edit_log (at)'
+    };
+    const have = new Set((await c.execute(`SELECT index_name FROM user_indexes`)).rows.map(r => r.INDEX_NAME));
+    const created = [];
+    for(const [name, sql] of Object.entries(want)) if(!have.has(name)){ await c.execute(sql); created.push(name.toLowerCase()); }
+    await c.execute(`BEGIN DBMS_STATS.GATHER_TABLE_STATS(USER, 'ASDD_ELECTOR'); DBMS_STATS.GATHER_TABLE_STATS(USER, 'ASDD_EDIT_LOG'); END;`);
+    const all = (await c.execute(`SELECT index_name, table_name FROM user_indexes WHERE table_name IN ('ASDD_ELECTOR','ASDD_EDIT_LOG') ORDER BY 2, 1`)).rows
+      .map(r => r.TABLE_NAME.toLowerCase() + '.' + r.INDEX_NAME.toLowerCase());
+    sumCache = null;
+    return { ok:true, created, indexes: all };
+  });
+}
+
 /* ------------------------------------------------------------------ diagnostics (no secrets returned) */
 async function diag(){
   const pem = fixPem(process.env.ORACLE_WALLET_PEM), cs = connectString();
@@ -355,6 +417,8 @@ module.exports = async (req, res) => {
       if(act === 'resall')  return send(await resAll());
       if(act === 'count')   return send(await count());
       if(act === 'ping')    return send(await withConn(async c => { await c.execute('SELECT 1 FROM dual'); return { ok:true, v:3, db:true }; }));
+      if(act === 'summarycheck') return send(await summaryCheck());
+      if(act === 'optimize') return send(await optimize());
       if(act === 'fixdates') return send(await fixDates());
       if(act === 'diag')    return send(await diag());
       if(act === 'setup')   return keyOk(q.key) ? send(await setup()) : send({ ok:false, error:'wrong key' });
