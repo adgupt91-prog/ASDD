@@ -360,7 +360,7 @@
 <div class="modal hide" id="bkModal"><form class="box edbox" id="bkForm" autocomplete="off" novalidate>
   <h3 id="bkTitle">Set date for all electors</h3>
   <div class="edinfo" id="bkInfo"></div>
-  <div class="fld"><label id="bkLbl">Date(s) of visit</label>
+  <div class="fld"><label id="bkLbl">Date of visit</label>
     <div class="dates" id="bkD"></div>
     <div class="ferr" id="bkErr"></div></div>
   <div class="fld bkmode">
@@ -374,10 +374,10 @@
   <h3 id="edTitle">Edit</h3>
   <div class="edinfo" id="edInfo"></div>
 
-  <div class="fld"><label>Date(s) of visit by BLO during Enumeration Phase <i>*</i></label>
+  <div class="fld"><label>Date of visit by BLO during Enumeration Phase <i>*</i> <small>(one date only)</small></label>
     <div class="dates" id="edD1"></div>
     <div class="ferr" data-for="edD1"></div></div>
-  <div class="fld"><label>Date(s) of visit by BLO during Re-verification <i>*</i></label>
+  <div class="fld"><label>Date of visit by BLO during Re-verification <i>*</i> <small>(one date only)</small></label>
     <div class="dates" id="edD2"></div>
     <div class="ferr" data-for="edD2"></div></div>
 
@@ -465,12 +465,15 @@
     else if(!a[0]){ a[1]=a[4]=a[5]=a[6]=a[7]=''; }
     return a;
   }
+  const splitDates = s => String(s||'').split(',').map(x => x.trim()).filter(Boolean);
   const MOB_RE = /^[6-9]\d{9}$/;
   // Missing / wrong fields of an answer, keyed by the edit-form field id
   function problems(x){
     const a = norm(x), e = {};
-    if(!a[2]) e.edD1 = 'Required – add at least one visit date';
-    if(!a[3]) e.edD2 = 'Required – add at least one visit date';
+    if(!a[2]) e.edD1 = 'Required – add the visit date';
+    else if(splitDates(a[2]).length > 1) e.edD1 = 'Only one date allowed – remove the extra date(s)';
+    if(!a[3]) e.edD2 = 'Required – add the visit date';
+    else if(splitDates(a[3]).length > 1) e.edD2 = 'Only one date allowed – remove the extra date(s)';
     if(!a[0]) e.edS = 'Select Residing or ASDD';
     if(a[0]==='Residing'){
       if(!a[4]) e.edR1 = 'Required when Residing';
@@ -675,14 +678,14 @@
     const box = $('bkD');
     box.innerHTML = (bkDates.length ? '' : '<span class="meta" style="margin:0">No date added</span>')
       + bkDates.map((d,i) => `<span class="chip">${esc(d)}<button type="button" data-i="${i}" title="Remove">×</button></span>`).join('')
-      + (bkDates.length < 10 ? `<input type="date" min="2025-01-01" max="${todayISO()}" aria-label="Pick a visit date"><button type="button" class="addd">+ Add date</button>` : '');
+      + (!bkDates.length ? `<input type="date" min="2025-01-01" max="${todayISO()}" aria-label="Pick a visit date"><button type="button" class="addd">📅 Pick date</button>` : '');
   }
   function addBk(){
     const inp = $('bkD').querySelector('input[type=date]'); if(!inp || !inp.value) return;
     if(inp.value > todayISO()){ alert('A visit date cannot be in the future.'); inp.value=''; inp.classList.remove('picked'); return; }
     if(inp.value < '2025-01-01'){ alert('Please pick a date from 2025 onwards.'); inp.value=''; inp.classList.remove('picked'); return; }
     const d = isoToDMY(inp.value);
-    if(!bkDates.includes(d)){ bkDates.push(d); bkDates.sort((a,b) => dmyKey(a) < dmyKey(b) ? -1 : 1); }
+    bkDates = [d];                                   // only one date allowed
     $('bkErr').textContent = ''; $('bkD').closest('.fld').classList.remove('bad'); drawBk();
   }
   // Date is added when the picker is closed (iPhone "Done" / Android "OK" / clicking away) or with "+ Add date".
@@ -698,7 +701,7 @@
   function openBulk(k){
     if(!cur || !rows.length || busy) return;
     bkK = k; bkDates = [];
-    const name = k ? 'Date(s) of visit by BLO during Re-verification' : 'Date(s) of visit by BLO during Enumeration Phase';
+    const name = (k ? 'Date of visit by BLO during Re-verification' : 'Date of visit by BLO during Enumeration Phase') + ' (one date only)';
     const empty = rows.filter(r => !norm(ans[r[1]])[k ? 3 : 2]).length;
     $('bkTitle').textContent = k ? 'Date of Re-visit – all electors' : 'Date of Enumeration – all electors';
     $('bkLbl').textContent = name;
@@ -715,7 +718,7 @@
   $('bkForm').addEventListener('submit', e => {
     e.preventDefault();
     addBk();
-    if(!bkDates.length){ $('bkErr').textContent = 'Add at least one date'; $('bkD').closest('.fld').classList.add('bad'); return; }
+    if(bkDates.length !== 1){ $('bkErr').textContent = 'Add one date'; $('bkD').closest('.fld').classList.add('bad'); return; }
     const idx = bkK ? 3 : 2, val = bkDates.join(', '), all = document.querySelector('input[name=bkMode]:checked').value === 'all';
     const targets = rows.filter(r => all || !norm(ans[r[1]])[idx]);
     if(!targets.length){ $('bkErr').textContent = 'All electors already have this date. Choose "All electors" to replace it.'; return; }
@@ -732,19 +735,19 @@
   const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
   const isoToDMY = s => { const [y,m,d] = s.split('-'); return `${d}-${m}-${y}`; };
   const dmyKey = s => { const m = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/.exec(s.trim()); return m ? m[3] + m[2].padStart(2,'0') + m[1].padStart(2,'0') : s; };
-  const splitDates = s => String(s||'').split(',').map(x => x.trim()).filter(Boolean);
   function drawDates(k){
     const box = $(k ? 'edD2' : 'edD1');
     box.innerHTML = edDates[k].map((d,i) => `<span class="chip">${esc(d)}<button type="button" data-k="${k}" data-i="${i}" title="Remove">×</button></span>`).join('')
-      + (edDates[k].length < 10 ? `<input type="date" data-k="${k}" min="2025-01-01" max="${todayISO()}" aria-label="Pick a visit date"><button type="button" class="addd" data-k="${k}">+ Add date</button>` : '');
+      + (!edDates[k].length ? `<input type="date" data-k="${k}" min="2025-01-01" max="${todayISO()}" aria-label="Pick a visit date"><button type="button" class="addd" data-k="${k}">📅 Pick date</button>` : '');
     if(!edDates[k].length) box.insertAdjacentHTML('afterbegin', '<span class="meta" style="margin:0">No date added</span>');
+    if(edDates[k].length > 1) box.insertAdjacentHTML('beforeend', '<span class="meta" style="margin:0;color:#c4472f">Only one date allowed – tap × to remove the extra date(s)</span>');
   }
   function addDate(k){
     const inp = $(k ? 'edD2' : 'edD1').querySelector('input[type=date]'); if(!inp || !inp.value) return;
     if(inp.value > todayISO()){ alert('A visit date cannot be in the future.'); inp.value=''; inp.classList.remove('picked'); return; }
     if(inp.value < '2025-01-01'){ alert('Please pick a date from 2025 onwards.'); inp.value=''; inp.classList.remove('picked'); return; }
     const d = isoToDMY(inp.value);
-    if(!edDates[k].includes(d)){ edDates[k].push(d); edDates[k].sort((a,b) => dmyKey(a) < dmyKey(b) ? -1 : 1); }
+    edDates[k] = [d];                                // only one date allowed
     drawDates(k);
   }
   ['edD1','edD2'].forEach(id => {
@@ -944,7 +947,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-04-1';
+  const APP_VER = '2026-11-05-1';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
@@ -964,7 +967,11 @@
       if(!r.ok) return;
       const v = (await r.json()).version;
       if(v && v !== APP_VER){
-        if(!dirty.size && !busy) reloadFresh(); else showUpdateBanner();
+        // Loop guard: auto-reload at most once per new version. If the page we get back is still
+        // the old one (cache / version.json not matching), show the banner instead of reloading again.
+        let tried = null; try{ tried = sessionStorage.getItem('asddReloadFor'); }catch(_){}
+        if(!dirty.size && !busy && tried !== v){ try{ sessionStorage.setItem('asddReloadFor', v); }catch(_){} reloadFresh(); }
+        else showUpdateBanner();
       }
     }catch(e){ /* offline – try again later */ }
     finally{ verChecking = false; }
