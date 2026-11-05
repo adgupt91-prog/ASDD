@@ -277,6 +277,34 @@ async function migrate(rows){
   });
 }
 
+/* ------------------------------------------------------------------ diagnostics (no secrets returned) */
+async function diag(){
+  const pem = fixPem(process.env.ORACLE_WALLET_PEM), cs = connectString();
+  const info = {
+    user: process.env.ORACLE_USER || '(missing)',
+    passwordSet: !!process.env.ORACLE_PASSWORD,
+    walletPasswordSet: !!process.env.ORACLE_WALLET_PASSWORD,
+    migrateKeySet: !!process.env.MIGRATE_KEY,
+    pemBlocks: (pem.match(/-----BEGIN [^-]+-----/g) || []),
+    pemLength: pem.length,
+    connectStartsOk: /^\(description=/i.test(cs),
+    connectEndsOk: /\)\s*$/.test(cs),
+    connectHost: (cs.match(/host=([^)]+)/i) || [])[1] || '(not found)',
+    connectPort: (cs.match(/port=([^)]+)/i) || [])[1] || '(not found)',
+    connectService: ((cs.match(/service_name=([^)]+)/i) || [])[1] || '(not found)').replace(/^[^_]+_/, '…_'),
+    region: process.env.VERCEL_REGION || ''
+  };
+  const t = Date.now();
+  try{
+    const c = await oracledb.getConnection({ user: process.env.ORACLE_USER || 'ADMIN', password: process.env.ORACLE_PASSWORD,
+      connectString: cs, walletContent: pem, walletPassword: process.env.ORACLE_WALLET_PASSWORD, connectTimeout: 15 });
+    await c.execute('SELECT 1 FROM dual'); await c.close();
+    return { ok:true, connected:true, ms: Date.now() - t, info };
+  }catch(e){
+    return { ok:false, connected:false, ms: Date.now() - t, error: String(e && e.message || e), info };
+  }
+}
+
 /* ------------------------------------------------------------------ handler */
 const keyOk = k => !!process.env.MIGRATE_KEY && str(k) === str(process.env.MIGRATE_KEY);
 
@@ -293,6 +321,7 @@ module.exports = async (req, res) => {
       if(act === 'resall')  return send(await resAll());
       if(act === 'count')   return send(await count());
       if(act === 'ping')    return send(await withConn(async c => { await c.execute('SELECT 1 FROM dual'); return { ok:true, v:3, db:true }; }));
+      if(act === 'diag')    return send(await diag());
       if(act === 'setup')   return keyOk(q.key) ? send(await setup()) : send({ ok:false, error:'wrong key' });
       return send({ ok:false, error:'unknown action ' + act });
     }
