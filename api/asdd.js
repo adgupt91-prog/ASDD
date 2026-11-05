@@ -72,10 +72,12 @@ function norm(a){
   if(a[1] !== 'Yes' && a[1] !== 'No') a[1] = '';
   if(a[0] === 'ASDD' || !a[0]){ a[1] = a[4] = a[5] = a[6] = a[7] = ''; }
   else if(a[1] === 'Yes'){ a[5] = a[6] = a[7] = ''; }
-  a[2] = a[2].slice(0, 200); a[3] = a[3].slice(0, 200);
+  a[2] = firstDate(a[2]); a[3] = firstDate(a[3]);          // only one visit date per field
   a[4] = a[4].slice(0, 200); a[5] = a[5].slice(0, 200); a[6] = a[6].slice(0, 100); a[7] = a[7].replace(/\D/g, '').slice(0, 10);
   return a;
 }
+// Keep only the first date of a comma-separated list ("05-11-2026, 07-11-2026" -> "05-11-2026")
+const firstDate = v => str(String(v || '').split(',')[0]).slice(0, 200);
 function complete(a){
   if(!a[2] || !a[3]) return false;
   if(a[0] === 'ASDD') return true;
@@ -287,6 +289,26 @@ async function migrate(rows){
   });
 }
 
+/* ------------------------------------------------------------------ one-time: one date per field */
+// Keeps only the first date in both visit-date columns. The full old value is kept once in *_orig columns,
+// so nothing is lost. Safe to run any number of times.
+async function fixDates(){
+  return withConn(async c => {
+    for(const col of ['enum_dates_orig', 'reverif_dates_orig'])
+      await c.execute(`ALTER TABLE asdd_elector ADD IF NOT EXISTS (${col} VARCHAR2(1000))`);
+    const out = {};
+    for(const col of ['enum_dates', 'reverif_dates']){
+      await c.execute(`UPDATE asdd_elector SET ${col}_orig = ${col} WHERE INSTR(${col}, ',') > 0 AND ${col}_orig IS NULL`);
+      const r = await c.execute(`UPDATE asdd_elector SET ${col} = TRIM(REGEXP_SUBSTR(${col}, '[^,]+', 1, 1)) WHERE INSTR(${col}, ',') > 0`);
+      out[col] = r.rowsAffected;
+    }
+    await c.commit();
+    const left = await c.execute(`SELECT COUNT(*) n FROM asdd_elector WHERE INSTR(enum_dates, ',') > 0 OR INSTR(reverif_dates, ',') > 0`);
+    sumCache = null;
+    return { ok:true, fixed: out, stillMultiple: left.rows[0].N };
+  });
+}
+
 /* ------------------------------------------------------------------ diagnostics (no secrets returned) */
 async function diag(){
   const pem = fixPem(process.env.ORACLE_WALLET_PEM), cs = connectString();
@@ -331,6 +353,7 @@ module.exports = async (req, res) => {
       if(act === 'resall')  return send(await resAll());
       if(act === 'count')   return send(await count());
       if(act === 'ping')    return send(await withConn(async c => { await c.execute('SELECT 1 FROM dual'); return { ok:true, v:3, db:true }; }));
+      if(act === 'fixdates') return send(await fixDates());
       if(act === 'diag')    return send(await diag());
       if(act === 'setup')   return keyOk(q.key) ? send(await setup()) : send({ ok:false, error:'wrong key' });
       return send({ ok:false, error:'unknown action ' + act });
