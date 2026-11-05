@@ -294,8 +294,10 @@ async function migrate(rows){
 // so nothing is lost. Safe to run any number of times.
 async function fixDates(){
   return withConn(async c => {
+    const have = await c.execute(`SELECT column_name FROM user_tab_columns WHERE table_name = 'ASDD_ELECTOR'`);
+    const cols = new Set(have.rows.map(r => r.COLUMN_NAME));
     for(const col of ['enum_dates_orig', 'reverif_dates_orig'])
-      await c.execute(`ALTER TABLE asdd_elector ADD IF NOT EXISTS (${col} VARCHAR2(1000))`);
+      if(!cols.has(col.toUpperCase())) await c.execute(`ALTER TABLE asdd_elector ADD (${col} VARCHAR2(1000))`);
     const out = {};
     for(const col of ['enum_dates', 'reverif_dates']){
       await c.execute(`UPDATE asdd_elector SET ${col}_orig = ${col} WHERE INSTR(${col}, ',') > 0 AND ${col}_orig IS NULL`);
