@@ -947,7 +947,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-05-4';
+  const APP_VER = '2026-11-05-5';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
@@ -1094,7 +1094,7 @@
       $('ovPct').textContent = pct.toFixed(1) + '%'; $('ovBar').style.width = pct + '%';
       $('admStats').innerHTML = [
         ['Total ASDD electors', fmt(tot)], ['Completed', `${fmt(dn)} (${pct.toFixed(1)}%)`],
-        ['BLOs not started', scope.filter(b => !b.started).length], ['BLOs 100% done', scope.filter(b => b.done >= b.n).length],
+        ['BLOs not started', scope.filter(b => !b.started).length], ['BLOs in progress', scope.filter(b => b.started && b.done < b.n).length], ['BLOs 100% done', scope.filter(b => b.done >= b.n).length],
         ['Residing', fmt(T('residing'))], ['Form-6 obtained', fmt(T('f6yes'))]
       ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
     }
