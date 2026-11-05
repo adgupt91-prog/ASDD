@@ -947,7 +947,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-05-3';
+  const APP_VER = '2026-11-05-4';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
@@ -1072,7 +1072,7 @@
   function buildAdmList(){
     admList = blos.map(b => { const s = admSum[b.ps] || {}, done = s.done||0, r = (remSum && remSum[b.ps]) || {};
       const rN = r.residing != null ? r.residing : (s.residing||0), rDone = r.remarks||0;
-      return {...b, done, pct: b.n ? done/b.n*100 : 0, residing:s.residing||0, notResiding:s.notResiding||0, f6yes:s.f6yes||0, f6no:s.f6no||0, frozen:!!s.frozen,
+      return {...b, done, started: s.started != null ? s.started : done, pct: b.n ? done/b.n*100 : 0, residing:s.residing||0, notResiding:s.notResiding||0, f6yes:s.f6yes||0, f6no:s.f6no||0, frozen:!!s.frozen,
         rN, rDone, rPend: rN - rDone, rPct: rN ? rDone/rN*100 : 100, f6yesR: r.f6yes != null ? r.f6yes : (s.f6yes||0), f6noR: r.f6no != null ? r.f6no : 0}; });
     drawOverall(); drawAdmin();
   }
@@ -1094,7 +1094,7 @@
       $('ovPct').textContent = pct.toFixed(1) + '%'; $('ovBar').style.width = pct + '%';
       $('admStats').innerHTML = [
         ['Total ASDD electors', fmt(tot)], ['Completed', `${fmt(dn)} (${pct.toFixed(1)}%)`],
-        ['BLOs not started', scope.filter(b => !b.done).length], ['BLOs 100% done', scope.filter(b => b.done >= b.n).length],
+        ['BLOs not started', scope.filter(b => !b.started).length], ['BLOs 100% done', scope.filter(b => b.done >= b.n).length],
         ['Residing', fmt(T('residing'))], ['Form-6 obtained', fmt(T('f6yes'))]
       ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
     }
@@ -1103,8 +1103,10 @@
   function admFiltered(){
     const q = $('admQ').value.trim().toUpperCase(), f = $('admF').value, K = MK();
     // Remarks mode: "Not started" = Residing electors present but no Remarks yet; BLOs with no Residing count as Completed
+    // Normal mode: "Not started" = BLO has not filled even one field of any elector; "In progress" = something filled, not all complete
+    const begun = b => admMode ? b[K.d] : b.started;
     return inScope(admList).filter(b => (!q || String(b.ps)===q || b.blo.toUpperCase().includes(q) || b.part.toUpperCase().includes(q))
-      && (!f || (f==='zero' && !b[K.d] && b[K.n] > 0) || (f==='part' && b[K.d] && b[K.d]<b[K.n]) || (f==='full' && b[K.d]>=b[K.n])))
+      && (!f || (f==='zero' && !begun(b) && b[K.n] > 0) || (f==='part' && begun(b) && b[K.d]<b[K.n]) || (f==='full' && b[K.d]>=b[K.n])))
       .sort((a,b) => {
         if(f==='part'){ const d = (a[K.p] - b[K.p]) * ($('admOrd').value==='desc' ? -1 : 1); return d || a.ps - b.ps; }
         const x=a[admSort], y=b[admSort]; return (x>y?1:x<y?-1:0) * (admAsc?1:-1); });
@@ -1117,7 +1119,7 @@
     $('admTb').innerHTML = admMode
       ? list.map(b => `<tr class="${b.rN && !b.rDone ? 'zero' : ''}">${first(b)}
           <td>${b.rN}</td><td>${b.rDone}</td>${pbarCell(b.rN ? b.rPct : 0, b.rN ? null : 'No Residing')}<td>${b.rPend ? '<b style="color:var(--err)">' + b.rPend + '</b>' : 0}</td><td>${b.f6yesR}</td><td>${b.f6noR}</td></tr>`).join('')
-      : list.map(b => `<tr class="${b.done?'':'zero'}">${first(b)}
+      : list.map(b => `<tr class="${b.started?'':'zero'}">${first(b)}
           <td>${b.n}</td><td>${b.done}</td>${pbarCell(b.pct)}
           <td>${b.residing}</td><td>${b.notResiding}</td><td>${b.f6yes}</td><td>${b.f6no}</td></tr>`).join('');
   }

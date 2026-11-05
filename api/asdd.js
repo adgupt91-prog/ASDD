@@ -142,7 +142,7 @@ const SUMMARY_SQL = `
            CASE WHEN TRIM(form6) IN ('Yes','No') THEN TRIM(form6) END f6,
            enum_dates, reverif_dates, reason_ef, NVL(TRIM(reason_no_f6), old_remarks) rsn, refused_name,
            REGEXP_REPLACE(refused_mobile, '[^0-9]', '') mob
-    FROM asdd_elector WHERE status IS NOT NULL)
+    FROM asdd_elector)
   SELECT ps,
          SUM(CASE WHEN TRIM(enum_dates) IS NOT NULL AND TRIM(reverif_dates) IS NOT NULL AND (
                      st = 'ASDD'
@@ -153,8 +153,13 @@ const SUMMARY_SQL = `
          SUM(CASE WHEN st = 'Residing' THEN 1 ELSE 0 END) residing,
          SUM(CASE WHEN st = 'ASDD' THEN 1 ELSE 0 END) not_residing,
          SUM(CASE WHEN st = 'Residing' AND f6 = 'Yes' THEN 1 ELSE 0 END) f6yes,
-         SUM(CASE WHEN st = 'Residing' AND f6 = 'No' THEN 1 ELSE 0 END) f6no
-  FROM e WHERE st IS NOT NULL AND ps IS NOT NULL GROUP BY ps`;
+         SUM(CASE WHEN st = 'Residing' AND f6 = 'No' THEN 1 ELSE 0 END) f6no,
+         -- "started": the BLO has filled at least one field of the elector (status ASDD alone does not count,
+         -- because every elector came pre-marked ASDD)
+         SUM(CASE WHEN st = 'Residing' OR f6 IS NOT NULL OR TRIM(enum_dates) IS NOT NULL OR TRIM(reverif_dates) IS NOT NULL
+                    OR TRIM(reason_ef) IS NOT NULL OR TRIM(rsn) IS NOT NULL OR TRIM(refused_name) IS NOT NULL OR mob IS NOT NULL
+             THEN 1 ELSE 0 END) started
+  FROM e WHERE ps IS NOT NULL GROUP BY ps`;
 
 let sumCache = null, sumAt = 0;
 async function summary(){
@@ -163,7 +168,7 @@ async function summary(){
     const r = await c.execute(SUMMARY_SQL);
     const data = {};
     for(const row of r.rows)
-      data[str(row.PS)] = { done: row.DONE, residing: row.RESIDING, notResiding: row.NOT_RESIDING, f6yes: row.F6YES, f6no: row.F6NO, frozen:false };
+      data[str(row.PS)] = { done: row.DONE, residing: row.RESIDING, notResiding: row.NOT_RESIDING, f6yes: row.F6YES, f6no: row.F6NO, started: row.STARTED, frozen:false };
     return { ok:true, data };
   });
   sumCache = res; sumAt = Date.now();
