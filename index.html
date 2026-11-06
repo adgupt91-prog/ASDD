@@ -947,7 +947,7 @@
   window.addEventListener('beforeunload', e => { if(dirty.size && !skipUnloadPrompt){ e.preventDefault(); e.returnValue=''; } });
 
   // ---- Auto-update: if a newer version of the website is published, reload (or ask to) ----
-  const APP_VER = '2026-11-05-6';
+  const APP_VER = '2026-11-06-1';
   function reloadFresh(){
     skipUnloadPrompt = true;   // unsaved entries are kept as a draft on the phone, so reloading is safe
     const u = new URL(location.href); u.searchParams.set('v', Date.now()); location.replace(u.toString());
@@ -1173,7 +1173,14 @@
         alternateRowStyles: { fillColor: [242,246,248] },
         columnStyles: { 0:{cellWidth:30}, 1:{cellWidth:40}, 2:{halign:'left'}, 3:{halign:'left'}, 7:{cellWidth:100} },
         // Progress column: green bar + % instead of plain text
-        didParseCell: c => { if(c.column.index === 7 && c.section !== 'head' && typeof c.cell.raw === 'number') c.cell.text = ['']; },
+        didParseCell: c => {
+          if(c.column.index === 7 && c.section !== 'head' && typeof c.cell.raw === 'number') c.cell.text = [''];
+          // BLO name: bigger, bold, white on red
+          if(c.column.index === 2 && c.section === 'body' && list.length){
+            c.cell.styles.fontSize = 10; c.cell.styles.fontStyle = 'bold';
+            c.cell.styles.fillColor = [200,35,35]; c.cell.styles.textColor = 255;
+          }
+        },
         didDrawCell: c => {
           if(c.column.index !== 7 || c.section === 'head' || typeof c.cell.raw !== 'number') return;
           const p = Math.max(0, Math.min(100, c.cell.raw)), x = c.cell.x + 5, bw = c.cell.width - 42, bh = 6, y = c.cell.y + c.cell.height/2 - bh/2;
