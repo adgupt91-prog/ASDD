@@ -72,7 +72,7 @@ function norm(a){
   if(a[1] !== 'Yes' && a[1] !== 'No') a[1] = '';
   if(a[0] === 'ASDD' || !a[0]){ a[1] = a[4] = a[5] = a[6] = a[7] = ''; }
   else if(a[1] === 'Yes'){ a[5] = a[6] = a[7] = ''; }
-  a[2] = firstDate(a[2]); a[3] = firstDate(a[3]);          // only one visit date per field
+  a[2] = a[2].slice(0, 200); a[3] = a[3].slice(0, 200);    // multiple visit dates allowed (comma-separated)
   a[4] = a[4].slice(0, 200); a[5] = a[5].slice(0, 200); a[6] = a[6].slice(0, 100); a[7] = a[7].replace(/\D/g, '').slice(0, 10);
   return a;
 }
