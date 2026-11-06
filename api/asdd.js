@@ -228,7 +228,43 @@ function details(a){
 }
 const cut = (v, n = MAX) => str(v).slice(0, n);
 
-async function save(body){
+/* ------------------------------------------------------------------ save log (who saved, from where) */
+// One row per Submit: time, PS, BLO, IP address, approximate location (from Vercel), device and browser.
+let saveLogReady = false;
+async function ensureSaveLog(c){
+  if(saveLogReady) return;
+  const t = await c.execute(`SELECT COUNT(*) n FROM user_tables WHERE table_name = 'ASDD_SAVE_LOG'`);
+  if(!t.rows[0].N){
+    await c.execute(`CREATE TABLE asdd_save_log (
+      id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      at TIMESTAMP DEFAULT SYSTIMESTAMP, ps VARCHAR2(20), blo VARCHAR2(200), part_name VARCHAR2(200),
+      rows_sent NUMBER, rows_saved NUMBER, rows_changed NUMBER,
+      ip VARCHAR2(64), city VARCHAR2(100), region VARCHAR2(100), country VARCHAR2(10),
+      device VARCHAR2(100), user_agent VARCHAR2(500))`);
+    await c.execute(`CREATE INDEX asdd_save_log_ps ON asdd_save_log (ps, at)`);
+    await c.execute(`CREATE INDEX asdd_save_log_ip ON asdd_save_log (ip, at)`);
+  }
+  saveLogReady = true;
+}
+const hdr = (req, k) => { const v = req.headers[k]; return str(Array.isArray(v) ? v[0] : v); };
+const dec = v => { try{ return decodeURIComponent(v); }catch(_){ return v; } };
+function deviceOf(ua){
+  const os = /iPad/.test(ua) ? 'iPad' : /iPhone/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android'
+           : /Windows/.test(ua) ? 'Windows' : /Mac OS X|Macintosh/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'Other';
+  const br = /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /Edg\//.test(ua) ? 'Edge' : /OPR\/|Opera/.test(ua) ? 'Opera'
+           : /Firefox|FxiOS/.test(ua) ? 'Firefox' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Safari/.test(ua) ? 'Safari' : 'Other';
+  const model = (ua.match(/Android [\d.]+; ([^;)]+?)(?: Build|\))/) || [])[1];
+  return (os + ' ' + br + (model && model !== 'K' ? ' (' + model.trim() + ')' : '')).slice(0, 100);
+}
+function clientMeta(req){
+  const ua = hdr(req, 'user-agent');
+  const ip = (hdr(req, 'x-forwarded-for').split(',')[0] || hdr(req, 'x-real-ip')).trim();
+  return { ip: ip.slice(0, 64), city: dec(hdr(req, 'x-vercel-ip-city')).slice(0, 100),
+           region: dec(hdr(req, 'x-vercel-ip-country-region')).slice(0, 100), country: hdr(req, 'x-vercel-ip-country').slice(0, 10),
+           device: deviceOf(ua), ua: ua.slice(0, 500) };
+}
+
+async function save(body, meta){
   const ps = str(body.ps), blo = str(body.blo), part = str(body.partName), list = body.rows || [];
   if(!ps || !list.length) return { ok:false, error:'nothing to save' };
   if(body.v !== 2 || list.some(r => !Array.isArray(r) || r.length < 18))
@@ -285,6 +321,14 @@ async function save(body){
          VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)`,
         logs, { bindDefs: Array.from({ length: 10 }, () => ({ type: oracledb.STRING, maxSize: 2000 })) });
     }
+    try{
+      await ensureSaveLog(c);
+      await c.execute(
+        `INSERT INTO asdd_save_log (ps, blo, part_name, rows_sent, rows_saved, rows_changed, ip, city, region, country, device, user_agent)
+         VALUES (:ps, :blo, :part, :sent, :saved, :changed, :ip, :city, :region, :country, :device, :ua)`,
+        { ps, blo: cut(blo, 200), part: cut(part, 200), sent: list.length, saved: ups.length, changed: logs.length,
+          ip: meta.ip, city: meta.city, region: meta.region, country: meta.country, device: meta.device, ua: meta.ua });
+    }catch(e){ saveLogReady = false; console.error('save log failed:', e.message); }   // never block a BLO's save
     await c.commit();
     sumCache = null;
     return { ok:true, saved: list.length - skipped.length, skipped };
@@ -436,7 +480,7 @@ module.exports = async (req, res) => {
       body = body || {};
       if(body.action === 'freeze')  return send({ ok:false, error:'Freeze is disabled' });
       if(body.action === 'migrate') return keyOk(body.key) ? send(await migrate(body.rows)) : send({ ok:false, error:'wrong key' });
-      return send(await save(body));
+      return send(await save(body, clientMeta(req)));
     }
     return res.status(405).json({ ok:false, error:'method not allowed' });
   }catch(err){
