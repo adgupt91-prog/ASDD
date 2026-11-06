@@ -402,6 +402,28 @@ async function fixDates(){
   });
 }
 
+/* ------------------------------------------------------------------ one-time: restore trimmed visit dates */
+// Puts back the full multi-date values saved by fixDates() in *_orig – but only where the entry still holds
+// exactly the first date that the cleanup left (i.e. nobody has changed that date since). Edited entries are skipped.
+// The backup value is cleared once restored, so running this again changes nothing.
+async function restoreDates(){
+  return withConn(async c => {
+    const have = new Set((await c.execute(`SELECT column_name FROM user_tab_columns WHERE table_name = 'ASDD_ELECTOR'`)).rows.map(r => r.COLUMN_NAME));
+    if(!have.has('ENUM_DATES_ORIG')) return { ok:false, error:'no backup columns found' };
+    const out = {};
+    for(const col of ['enum_dates', 'reverif_dates']){
+      const r = await c.execute(
+        `UPDATE asdd_elector SET ${col} = ${col}_orig, ${col}_orig = NULL
+         WHERE ${col}_orig IS NOT NULL AND TRIM(${col}) = TRIM(REGEXP_SUBSTR(${col}_orig, '[^,]+', 1, 1))`);
+      const left = await c.execute(`SELECT COUNT(*) n FROM asdd_elector WHERE ${col}_orig IS NOT NULL`);
+      out[col] = { restored: r.rowsAffected, skippedEditedSince: left.rows[0].N };
+    }
+    await c.commit();
+    sumCache = null;
+    return { ok:true, ...out };
+  });
+}
+
 /* ------------------------------------------------------------------ one-time: log times in IST */
 // The database clock is UTC. Makes the "at" column of both logs store Indian time (UTC+5:30):
 // new rows get IST by default, and rows already written are shifted +5:30 exactly once
@@ -489,6 +511,7 @@ module.exports = async (req, res) => {
       if(act === 'count')   return send(await count());
       if(act === 'ping')    return send(await withConn(async c => { await c.execute('SELECT 1 FROM dual'); return { ok:true, v:3, db:true }; }));
       if(act === 'summarycheck') return send(await summaryCheck());
+      if(act === 'restoredates') return send(await restoreDates());
       if(act === 'fixtz') return send(await fixTz());
       if(act === 'optimize') return send(await optimize());
       if(act === 'fixdates') return send(await fixDates());
