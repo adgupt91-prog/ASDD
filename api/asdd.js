@@ -113,7 +113,7 @@ const DDL = [
   `CREATE INDEX IF NOT EXISTS asdd_elector_status ON asdd_elector (status, ps)`,
   `CREATE TABLE IF NOT EXISTS asdd_edit_log (
      id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-     at TIMESTAMP DEFAULT SYSTIMESTAMP, ps VARCHAR2(20), blo VARCHAR2(200), epic VARCHAR2(30), name VARCHAR2(300),
+     at TIMESTAMP DEFAULT CAST(SYSTIMESTAMP AT TIME ZONE 'Asia/Kolkata' AS TIMESTAMP), ps VARCHAR2(20), blo VARCHAR2(200), epic VARCHAR2(30), name VARCHAR2(300),
      old_status VARCHAR2(30), old_form6 VARCHAR2(10), old_details VARCHAR2(2000),
      new_status VARCHAR2(30), new_form6 VARCHAR2(10), new_details VARCHAR2(2000))`
 ];
@@ -237,7 +237,7 @@ async function ensureSaveLog(c){
   if(!t.rows[0].N){
     await c.execute(`CREATE TABLE asdd_save_log (
       id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-      at TIMESTAMP DEFAULT SYSTIMESTAMP, ps VARCHAR2(20), blo VARCHAR2(200), part_name VARCHAR2(200),
+      at TIMESTAMP DEFAULT CAST(SYSTIMESTAMP AT TIME ZONE 'Asia/Kolkata' AS TIMESTAMP), ps VARCHAR2(20), blo VARCHAR2(200), part_name VARCHAR2(200),
       rows_sent NUMBER, rows_saved NUMBER, rows_changed NUMBER,
       ip VARCHAR2(64), city VARCHAR2(100), region VARCHAR2(100), country VARCHAR2(10),
       device VARCHAR2(100), user_agent VARCHAR2(500))`);
@@ -402,6 +402,28 @@ async function fixDates(){
   });
 }
 
+/* ------------------------------------------------------------------ one-time: log times in IST */
+// The database clock is UTC. Makes the "at" column of both logs store Indian time (UTC+5:30):
+// new rows get IST by default, and rows already written are shifted +5:30 exactly once
+// (a column comment "IST" marks a table as done, so running this again changes nothing).
+async function fixTz(){
+  return withConn(async c => {
+    const out = {};
+    for(const t of ['ASDD_SAVE_LOG', 'ASDD_EDIT_LOG']){
+      const ex = await c.execute(`SELECT COUNT(*) n FROM user_tables WHERE table_name = :t`, [t]);
+      if(!ex.rows[0].N){ out[t.toLowerCase()] = 'table not created yet'; continue; }
+      const cm = await c.execute(`SELECT comments FROM user_col_comments WHERE table_name = :t AND column_name = 'AT'`, [t]);
+      if(cm.rows.length && cm.rows[0].COMMENTS === 'IST'){ out[t.toLowerCase()] = 'already IST'; continue; }
+      await c.execute(`ALTER TABLE ${t} MODIFY (at DEFAULT CAST(SYSTIMESTAMP AT TIME ZONE 'Asia/Kolkata' AS TIMESTAMP))`);
+      const r = await c.execute(`UPDATE ${t} SET at = at + INTERVAL '0 05:30:00' DAY TO SECOND WHERE at IS NOT NULL`);
+      await c.execute(`COMMENT ON COLUMN ${t}.at IS 'IST'`);
+      await c.commit();
+      out[t.toLowerCase()] = r.rowsAffected + ' rows shifted to IST';
+    }
+    return { ok:true, ...out };
+  });
+}
+
 /* ------------------------------------------------------------------ indexes */
 // Creates the indexes the site's queries use (skips any that already exist) and refreshes table statistics.
 async function optimize(){
@@ -467,6 +489,7 @@ module.exports = async (req, res) => {
       if(act === 'count')   return send(await count());
       if(act === 'ping')    return send(await withConn(async c => { await c.execute('SELECT 1 FROM dual'); return { ok:true, v:3, db:true }; }));
       if(act === 'summarycheck') return send(await summaryCheck());
+      if(act === 'fixtz') return send(await fixTz());
       if(act === 'optimize') return send(await optimize());
       if(act === 'fixdates') return send(await fixDates());
       if(act === 'diag')    return send(await diag());
